@@ -6,6 +6,8 @@ import Settings
 
 def show_home_screen(root):
 
+    root.attributes('-fullscreen', True)
+
     for widget in root.winfo_children():
         widget.destroy()
     

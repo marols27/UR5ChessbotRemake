@@ -147,12 +147,12 @@ def show_game_screen(root, color, difficulty):
 
     # Example function to resign the game
     def resign_game():
-        messagebox.showinfo("Resign", "You have resigned the game.")
-        game_frame.destroy()
+        resign_message = messagebox.askquestion("You have asked to resign", "Are you sure you want to resign the game?")
+        if resign_message == "yes":
+            return_to_home()
 
         # Import inside the function to avoid circular import
-        from home_screen import show_home_screen
-        show_home_screen(root)
+       
 
     def play_first_move():
         correct_start_fen = game.board.board.fen().split(" ")[0]
