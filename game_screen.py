@@ -32,7 +32,7 @@ def show_game_screen(root, selection_frame, color, difficulty):
     gameInfo = chess.pgn.Game()
     capturePos = Settings.CAPTURE_POSE
     timeout = Settings.TIMEOUT
-    game = Game(robot, dgt, board, engine, gameInfo, capturePos, timeout, 10, True)
+    game = Game(robot, dgt, board, engine, gameInfo, capturePos, timeout, 10, color == "white")
 
     # Define the Ubuntu font
     ubuntu_font = ("Ubuntu", 24)
@@ -154,15 +154,23 @@ def show_game_screen(root, selection_frame, color, difficulty):
         show_home_screen(root)
 
     def play_first_move():
+        correct_start_fen = game.board.board.fen().split(" ")[0]
         if color == "black":
             current_dgt_fen = game.dgtBoard.getCurentBoardFen()
-            correct_start_fen = game.board.board.fen().split(" ")[0]
             if current_dgt_fen == correct_start_fen:
                 game.playRobotMove()
                 board_canvas.update_board(game.board.board.fen())
             else:
                 messagebox.showinfo("The board is set up wrong", "Please set up the board correctly and press the confirm move button.")
                 play_first_move()
+        else:
+            if correct_start_fen == correct_start_fen:
+                messagebox.showinfo("Get ready", "You are playing white. Please make your move.")
+            else:
+                messagebox.showinfo("The board is set up wrong", "Please set up the board correctly and press the confirm move button.")
+                play_first_move()
+        
+
     play_first_move()
 
 if __name__ == "__main__":
