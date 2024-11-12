@@ -142,7 +142,7 @@ class Game:
                         messageCallback("It's a draw","Stalemate! The game is a draw!")
         else:
             playsound("speechfiles/illegal_move.mp3")
-            messageCallback("Illegal move! Please try again.")
+            messageCallback("Illegal move","The move you made is illegal. Please try again.")
         pass
         
     def playerMove(self):

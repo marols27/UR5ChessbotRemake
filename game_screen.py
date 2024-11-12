@@ -13,10 +13,11 @@ import chess.engine
 import chess.pgn
 from playsound import playsound
 
-def show_game_screen(root, selection_frame, color, difficulty):
+def show_game_screen(root, color, difficulty):
     '''Show the game screen with the selected color and difficulty.'''
 
-    selection_frame.destroy()
+    for widget in root.winfo_children():
+        widget.destroy()
 
     # Create the game
     robot = UR5Robot(Settings.TRAVEL_HEIGHT, Settings.HOME, Settings.CONNECTION_IP, Settings.ACCELERATION, Settings.SPEED, Settings.GRIPPER_SPEED, Settings.GRIPPER_FORCE)
@@ -130,9 +131,9 @@ def show_game_screen(root, selection_frame, color, difficulty):
                 mbox = messagebox.askyesno(header, text)
                 if mbox:
                     return_to_home()
-            else:
-                messagebox.showinfo(header, text)
-                move_history.reset_to_current() 
+        else:
+            messagebox.showinfo(header, text)
+            move_history.reset_to_current() 
 
     def confirm_move():
         move_history.reset_to_current()

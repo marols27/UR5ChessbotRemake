@@ -5,6 +5,10 @@ from PoseConfigure import PoseConfigure
 import Settings
 
 def show_home_screen(root):
+
+    for widget in root.winfo_children():
+        widget.destroy()
+    
     # Set up style configurations
     style = ttk.Style()
     style.theme_use("clam")  # You can also try "alt", "default", or "classic"
@@ -48,7 +52,7 @@ def show_home_screen(root):
         buttons_frame, 
         text="Start Game", 
         style="TButton",
-        command=lambda: show_selection_screen(root, home_frame)
+        command=lambda: show_selection_screen(root)
     )
     start_button.place(relx=0, rely=0, relwidth=0.3, relheight=1)
 

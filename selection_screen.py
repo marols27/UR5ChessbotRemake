@@ -1,31 +1,72 @@
 import tkinter as tk
-from tkinter import ttk, font as tkfont
+from tkinter import ttk
 from game_screen import show_game_screen
-from Game import Game
 
-def show_selection_screen(root, home_frame):
-    home_frame.destroy()
+def show_selection_screen(root):
+    # Destroy any existing frames
+    for widget in root.winfo_children():
+        widget.destroy()
 
     # Padding variables for easy adjustment
     BUTTON_PADX = 20
     BUTTON_PADY = 20
 
+    # Function to update button styles when selected
+    def update_button_style(var, buttons, styles):
+        for value, button in buttons.items():
+            if var.get() == value:
+                button.config(style=styles[value]['selected'])
+            else:
+                button.config(style=styles[value]['default'])
+
     # Set up style configurations
     style = ttk.Style()
     style.theme_use("clam")
 
-    # Define styles for buttons and labels
-    style.configure("Title.TLabel", font=("Ubuntu", 30, "bold"), foreground="white", background="#333333")
+    # Define styles for difficulty buttons
+    difficulty_styles = {
+        "easy": {
+            "default": "Easy.TButton",
+            "selected": "EasySelected.TButton"
+        },
+        "medium": {
+            "default": "Medium.TButton",
+            "selected": "MediumSelected.TButton"
+        },
+        "hard": {
+            "default": "Hard.TButton",
+            "selected": "HardSelected.TButton"
+        }
+    }
+
+    # Define styles for color buttons
+    color_styles = {
+        "white": {
+            "default": "White.TButton",
+            "selected": "WhiteSelected.TButton"
+        },
+        "black": {
+            "default": "Black.TButton",
+            "selected": "BlackSelected.TButton"
+        }
+    }
+
+    # Configure styles for difficulty buttons
     style.configure("Easy.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="green", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("EasySelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="lightgreen", padding=(BUTTON_PADX, BUTTON_PADY))
     style.configure("Medium.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="yellow", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("MediumSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="lightyellow", padding=(BUTTON_PADX, BUTTON_PADY))
     style.configure("Hard.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="red", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("Default.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="#1a237e", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("Color.TButton", font=("Ubuntu", 18, "bold"), padding=(BUTTON_PADX, BUTTON_PADY))
-    style.map("Next.TButton",
-              background=[("active", "#c82333")])
+    style.configure("HardSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="lightcoral", padding=(BUTTON_PADX, BUTTON_PADY))
+
+    # Configure styles for color buttons
+    style.configure("White.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="white", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("WhiteSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="gray", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("Black.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("BlackSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="gray", padding=(BUTTON_PADX, BUTTON_PADY))
 
     # Main Frame
-    selection_frame = ttk.Frame(root, style="TFrame")
+    selection_frame = ttk.Frame(root, padding="20")
     selection_frame.pack(fill="both", expand=True)
 
     # Configuring grid to be responsive
@@ -33,78 +74,81 @@ def show_selection_screen(root, home_frame):
     selection_frame.grid_columnconfigure(1, weight=1)
     selection_frame.grid_columnconfigure(2, weight=1)
     selection_frame.grid_rowconfigure(0, weight=1)
-    selection_frame.grid_rowconfigure(1, weight=3)
-    selection_frame.grid_rowconfigure(2, weight=3)
+    selection_frame.grid_rowconfigure(1, weight=1)
+    selection_frame.grid_rowconfigure(2, weight=1)
     selection_frame.grid_rowconfigure(3, weight=1)
+    selection_frame.grid_rowconfigure(4, weight=1)
 
-    # Title label for difficulty selection
-    difficulty_label = ttk.Label(selection_frame, text="Choose Difficulty", style="Title.TLabel")
-    difficulty_label.grid(row=0, column=0, columnspan=3, pady=20, sticky="s")
+    # Title label
+    title_label = ttk.Label(selection_frame, text="Choose Difficulty and Piece Color", font=("Ubuntu", 24, "bold"))
+    title_label.grid(row=0, column=0, columnspan=3, pady=10)
 
     # Difficulty variable
     difficulty_var = tk.StringVar(value="easy")
 
-    # Difficulty buttons with responsiveness
+    # Difficulty buttons
     difficulty_buttons = {
-        "easy": ttk.Radiobutton(
-            selection_frame, text="EASY", variable=difficulty_var, value="easy",
-            style="Default.TButton", command=lambda: update_button_style(difficulty_var, difficulty_buttons)
+        "easy": ttk.Button(
+            selection_frame, text="EASY", style="Easy.TButton",
+            command=lambda: update_button_style(difficulty_var, difficulty_buttons, difficulty_styles)
         ),
-        "medium": ttk.Radiobutton(
-            selection_frame, text="MEDIUM", variable=difficulty_var, value="medium",
-            style="Default.TButton", command=lambda: update_button_style(difficulty_var, difficulty_buttons)
+        "medium": ttk.Button(
+            selection_frame, text="MEDIUM", style="Medium.TButton",
+            command=lambda: update_button_style(difficulty_var, difficulty_buttons, difficulty_styles)
         ),
-        "hard": ttk.Radiobutton(
-            selection_frame, text="HARD", variable=difficulty_var, value="hard",
-            style="Default.TButton", command=lambda: update_button_style(difficulty_var, difficulty_buttons)
+        "hard": ttk.Button(
+            selection_frame, text="HARD", style="Hard.TButton",
+            command=lambda: update_button_style(difficulty_var, difficulty_buttons, difficulty_styles)
         )
     }
 
-    # Placing difficulty buttons
-    difficulty_buttons["easy"].grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
-    difficulty_buttons["medium"].grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
-    difficulty_buttons["hard"].grid(row=1, column=2, sticky="nsew", padx=10, pady=10)
+    # Place difficulty buttons
+    difficulty_buttons["easy"].grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+    difficulty_buttons["medium"].grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+    difficulty_buttons["hard"].grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
 
-    # Title label for color selection
-    color_label = ttk.Label(selection_frame, text="Choose Your Color", style="Title.TLabel")
-    color_label.grid(row=2, column=0, columnspan=3, pady=20, sticky="s")
-
-    # Piece color variable
+    # Color variable
     color_var = tk.StringVar(value="white")
 
-    # Color selection buttons
+    # Color buttons
     color_buttons = {
-        "white": ttk.Radiobutton(
-            selection_frame, text="WHITE", variable=color_var, value="white",
-            style="Color.TButton"
+        "white": ttk.Button(
+            selection_frame, text="WHITE", style="White.TButton",
+            command=lambda: update_button_style(color_var, color_buttons, color_styles)
         ),
-        "black": ttk.Radiobutton(
-            selection_frame, text="BLACK", variable=color_var, value="black",
-            style="Color.TButton"
+        "black": ttk.Button(
+            selection_frame, text="BLACK", style="Black.TButton",
+            command=lambda: update_button_style(color_var, color_buttons, color_styles)
         )
     }
 
-    # Placing color selection buttons
-    color_buttons["white"].grid(row=3, column=0, sticky="nsew", padx=10, pady=10)
-    color_buttons["black"].grid(row=3, column=2, sticky="nsew", padx=10, pady=10)
+    # Place color buttons
+    color_buttons["white"].grid(row=2, column=0, columnspan=1, padx=10, pady=10, sticky="nsew")
+    color_buttons["black"].grid(row=2, column=2, columnspan=1, padx=10, pady=10, sticky="nsew")
 
     # Function for "Next" button command
     def handle_next():
-        show_game_screen(root, selection_frame, color_var.get(), difficulty_var.get())
+        selected_difficulty = difficulty_var.get()
+        selected_color = color_var.get()
+        print(f"Selected Difficulty: {selected_difficulty}, Selected Color: {selected_color}")
+        # Proceed to the next screen or function
+        show_game_screen(root, selected_color, selected_difficulty)
 
     # Next Button
     next_button = ttk.Button(
         selection_frame,
         text="NEXT",
-        command=handle_next,
-        style="Next.TButton"
+        style="Next.TButton",
+        command=handle_next
     )
-    next_button.grid(row=4, column=1, pady=20, sticky="se")
+    style.configure("Next.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="#dc3545", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.map("Next.TButton", background=[("active", "#c82333")])
+    next_button.grid(row=3, column=1, pady=20, sticky="nsew")
 
 # Example usage
 if __name__ == "__main__":
     root = tk.Tk()
     root.state("zoomed")  # Start app in fullscreen
     root.title("HVL Robotics Chess Robot")
-    show_selection_screen(root, tk.Frame(root))
+    show_selection_screen(root)
     root.mainloop()
