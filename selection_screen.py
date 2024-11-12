@@ -26,15 +26,15 @@ def show_selection_screen(root):
     # Define styles for difficulty buttons
     difficulty_styles = {
         "easy": {
-            "default": "Easy.TButton",
+            "default": "EasyDefault.TButton",
             "selected": "EasySelected.TButton"
         },
         "medium": {
-            "default": "Medium.TButton",
+            "default": "MediumDefault.TButton",
             "selected": "MediumSelected.TButton"
         },
         "hard": {
-            "default": "Hard.TButton",
+            "default": "HardDefault.TButton",
             "selected": "HardSelected.TButton"
         }
     }
@@ -42,28 +42,31 @@ def show_selection_screen(root):
     # Define styles for color buttons
     color_styles = {
         "white": {
-            "default": "White.TButton",
+            "default": "ColorDefault.TButton",
             "selected": "WhiteSelected.TButton"
         },
         "black": {
-            "default": "Black.TButton",
+            "default": "ColorDefault.TButton",
             "selected": "BlackSelected.TButton"
         }
     }
 
-    # Configure styles for difficulty buttons
-    style.configure("Easy.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="green", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("EasySelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="lightgreen", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("Medium.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="yellow", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("MediumSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="lightyellow", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("Hard.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="red", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("HardSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="lightcoral", padding=(BUTTON_PADX, BUTTON_PADY))
+    # Configure default styles (black background) for all difficulty buttons
+    style.configure("EasyDefault.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("MediumDefault.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("HardDefault.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
 
-    # Configure styles for color buttons
-    style.configure("White.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="white", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("WhiteSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="gray", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("Black.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
-    style.configure("BlackSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="gray", padding=(BUTTON_PADX, BUTTON_PADY))
+    # Configure selected styles for difficulty buttons
+    style.configure("EasySelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="green", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("MediumSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="yellow", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("HardSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="red", padding=(BUTTON_PADX, BUTTON_PADY))
+
+    # Configure default style (black background) for color buttons
+    style.configure("ColorDefault.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
+
+    # Configure selected styles for color buttons
+    style.configure("WhiteSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="black", background="white", padding=(BUTTON_PADX, BUTTON_PADY))
+    style.configure("BlackSelected.TButton", font=("Ubuntu", 18, "bold"), foreground="white", background="black", padding=(BUTTON_PADX, BUTTON_PADY))
 
     # Main Frame
     selection_frame = ttk.Frame(root, padding="20")
@@ -89,15 +92,15 @@ def show_selection_screen(root):
     # Difficulty buttons
     difficulty_buttons = {
         "easy": ttk.Button(
-            selection_frame, text="EASY", style="Easy.TButton",
+            selection_frame, text="EASY", style="EasyDefault.TButton",
             command=lambda: update_button_style(difficulty_var, difficulty_buttons, difficulty_styles)
         ),
         "medium": ttk.Button(
-            selection_frame, text="MEDIUM", style="Medium.TButton",
+            selection_frame, text="MEDIUM", style="MediumDefault.TButton",
             command=lambda: update_button_style(difficulty_var, difficulty_buttons, difficulty_styles)
         ),
         "hard": ttk.Button(
-            selection_frame, text="HARD", style="Hard.TButton",
+            selection_frame, text="HARD", style="HardDefault.TButton",
             command=lambda: update_button_style(difficulty_var, difficulty_buttons, difficulty_styles)
         )
     }
@@ -113,11 +116,11 @@ def show_selection_screen(root):
     # Color buttons
     color_buttons = {
         "white": ttk.Button(
-            selection_frame, text="WHITE", style="White.TButton",
+            selection_frame, text="WHITE", style="ColorDefault.TButton",
             command=lambda: update_button_style(color_var, color_buttons, color_styles)
         ),
         "black": ttk.Button(
-            selection_frame, text="BLACK", style="Black.TButton",
+            selection_frame, text="BLACK", style="ColorDefault.TButton",
             command=lambda: update_button_style(color_var, color_buttons, color_styles)
         )
     }
