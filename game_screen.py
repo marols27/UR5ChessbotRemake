@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from CTkMessagebox import CTkMessagebox
 from components.chessboard import Chessboard  # Import the Chessboard component
 from components.move_history import MoveHistory  # Import the MoveHistory component
 from DGTBoard import DGTBoard
@@ -105,11 +106,13 @@ def show_game_screen(root, color, difficulty):
     def message_callback(header, text):
         print(header, text)
         if header in ["You won", "You lost", "It's a draw"]:
-            text = text + "\nDo you want to return to the home menu?"
-            if messagebox.askyesno(header, text):
+            text += "\nDo you want to return to the home menu?"
+            msg_box = CTkMessagebox(title=header, message=text, icon="question", option_1="Yes", option_2="No")
+            response = msg_box.get()
+            if response == "Yes":
                 return_to_home()
         else:
-            messagebox.showinfo(header, text)
+            CTkMessagebox(title=header, message=text, icon="info", option_1="OK")
             move_history.reset_to_current()
 
     def confirm_move():
@@ -132,15 +135,15 @@ def show_game_screen(root, color, difficulty):
         if color == "black":
             current_dgt_fen = game.dgtBoard.getCurentBoardFen()
             if current_dgt_fen == correct_start_fen:
-                messagebox.showinfo("Games is ready", "The robot will move first!")
+                messagebox.showinfo("Get Ready", "You are playing black so the robot wil start the game, press OK when ready")
                 game.playRobotMove()
                 board_canvas.update_board(game.board.board.fen())
             else:
-                messagebox.showinfo("The board is set up wrong", "Please set up the board correctly and press the confirm move button.")
+                CTkMessagebox(title="The board is set up wrong", message="Please set up the board correctly and press the confirm move button.", icon="info", option_1="OK")
                 play_first_move()
         else:
             if correct_start_fen == correct_start_fen:
-                messagebox.showinfo("Get ready", "You are playing white. Please make your move.")
+                CTkMessagebox(tilte="Get Ready", message="You are playing white. Please make your move.", icon="info", option_1 = "OK")
             else:
                 messagebox.showinfo("The board is set up wrong", "Please set up the board correctly and press the confirm move button.")
                 play_first_move()
