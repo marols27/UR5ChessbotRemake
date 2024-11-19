@@ -120,7 +120,8 @@ def show_game_screen(root, color, difficulty):
         if not move_history.is_current:
             board_canvas.update_board(game.dgtBoard.getCurentBoardFen())
             game.confirmMove(message_callback)
-            board_canvas.update_board(game.board.board.fen())
+            move_history.load_moves(game.board.board)
+            print(game.gameInfo.mainline_moves)
         else:
             move_history.reset_to_current()
             confirm_move()
@@ -138,12 +139,13 @@ def show_game_screen(root, color, difficulty):
                 messagebox.showinfo("Get Ready", "You are playing black so the robot wil start the game, press OK when ready")
                 game.playRobotMove()
                 board_canvas.update_board(game.board.board.fen())
+                move_history.load_moves(game.board.board)
             else:
-                CTkMessagebox(title="The board is set up wrong", message="Please set up the board correctly and press the confirm move button.", icon="info", option_1="OK")
+                messagebox.showinfo("Board is set up wrong", "Please set the pieces in their starting positions and press OK")
                 play_first_move()
         else:
             if correct_start_fen == correct_start_fen:
-                CTkMessagebox(tilte="Get Ready", message="You are playing white. Please make your move.", icon="info", option_1 = "OK")
+                messagebox.showinfo("Get Ready", "You are playing white. Please make your move.")
             else:
                 messagebox.showinfo("The board is set up wrong", "Please set up the board correctly and press the confirm move button.")
                 play_first_move()

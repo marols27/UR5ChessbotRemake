@@ -1,79 +1,76 @@
-import tkinter as tk
-from tkinter import ttk, font as tkfont
+import customtkinter as ctk
 import chess
 
-class MoveHistory(ttk.Frame):
+
+class MoveHistory(ctk.CTkFrame):
     def __init__(self, parent, board_canvas, game, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.board_canvas = board_canvas
         self.game = game  # Reference to the Game instance
         self.board = chess.Board()
-        self.current_move_index = -1  # Start before the first move
+        self.current_move_index = 0  # Start before the first move
         self.is_current = False  # Flag to indicate if showing the current board
         self.moves = []
 
-        # Initialize styles
-        self.style = ttk.Style()
-        self.style.configure('Title.TLabel', font=('Ubuntu', 20, 'bold'), foreground='white', background='#333333')
-        self.style.configure('Nav.TButton', font=('Ubuntu', 14), foreground='white', background='#444444')
-        self.style.map('Nav.TButton', background=[('active', '#555555')])
-
         # Label
-        move_history_label = ttk.Label(self, text="Move History", style='Title.TLabel', padding=(10, 5))
-        move_history_label.grid(row=0, column=0, columnspan=4, sticky="ew")
+        move_history_label = ctk.CTkLabel(
+            self, text="Move History",
+            font=ctk.CTkFont(size=20, weight="bold")
+        )
+        move_history_label.grid(row=0, column=0, columnspan=4, pady=10, sticky="ew")
 
-        # Text widget for displaying moves
-        text_font = tkfont.Font(family='Ubuntu', size=16)
-        self.move_history_text = tk.Text(self, height=15, width=40, bg="#666666", fg="white",
-                                         font=text_font, borderwidth=0, padx=10, pady=10)
-        self.move_history_text.grid(row=1, column=0, columnspan=4)
-        self.move_history_text.tag_configure("current_move", foreground="red")
+        # Textbox for displaying moves
+        self.move_history_text = ctk.CTkTextbox(
+            self, height=300, width=400, font=ctk.CTkFont(size=16),
+            fg_color="#666666", text_color="white", wrap="word", padx=10, pady=10
+        )
+        self.move_history_text.grid(row=1, column=0, columnspan=4, pady=10)
+        #self.move_history_text.tag_configure("current_move", foreground="red")
 
         # Navigation buttons
-        back_button = ttk.Button(self, text="<<", style='Nav.TButton', command=self.first_move)
+        back_button = ctk.CTkButton(self, text="<<", command=self.first_move, width=60)
         back_button.grid(row=2, column=0, pady=10, padx=5)
 
-        prev_button = ttk.Button(self, text="<", style='Nav.TButton', command=self.prev_move)
+        prev_button = ctk.CTkButton(self, text="<", command=self.prev_move, width=60)
         prev_button.grid(row=2, column=1, pady=10, padx=5)
 
-        next_button = ttk.Button(self, text=">", style='Nav.TButton', command=self.next_move)
+        next_button = ctk.CTkButton(self, text=">", command=self.next_move, width=60)
         next_button.grid(row=2, column=2, pady=10, padx=5)
 
-        forward_button = ttk.Button(self, text=">>", style='Nav.TButton', command=self.last_move)
+        forward_button = ctk.CTkButton(self, text=">>", command=self.last_move, width=60)
         forward_button.grid(row=2, column=3, pady=10, padx=5)
 
-    def load_moves(self):
-        """Load moves from the gameInfo object in the Game class."""
-        game_info = self.game.get_game_info()  # Get the current gameInfo from the Game instance
-        self.board = game_info.board()  # Get the current board position from the gameInfo
-        self.moves = list(game_info.mainline_moves())  # Extract all moves made in the game
+    def load_moves(self, board):
+        """
+        Load moves from the game's board object and update the move history.
 
-        self.current_move_index = len(self.moves) - 1  # Start at the last move
-        self.is_current = True  # Set the flag to indicate the current board state is being shown
+        :param board: The current chess.Board instance with moves played so far.
+        """
+        self.board = board  # Store the board reference
+        self.moves = list(board.move_stack)  # Get all moves from the board's move stack
+        self.current_move_index = len(self.moves) - 1  # Set to the last move
+        self.is_current = True  # Indicate the move history matches the current state
 
-        self.update_move_history()  # Display the moves
+        # Update the move history display
+        self.update_move_history()
 
     def update_move_history(self):
         """Update the displayed move history text."""
-        self.move_history_text.delete('1.0', tk.END)
+        self.move_history_text.delete('1.0', "end")
         self.board.reset()  # Ensure the board starts from the initial position
 
         for i, move in enumerate(self.moves):
+            print(move)
             san_move = self.board.san(move)
             self.board.push(move)
-            prefix = f"{i//2 + 1}. " if i % 2 == 0 else " "
+            prefix = f"{i // 2 + 1}. " if i % 2 == 0 else " "
             move_text = prefix + san_move + " "
 
             if i == self.current_move_index:
-                if i % 2 == 0:
-                    self.move_history_text.insert(tk.END, move_text.split('.')[0] + ".")
-                    self.move_history_text.insert(tk.END, move_text.split('.')[1], "current_move")
-                else:
-                    self.move_history_text.insert(tk.END, move_text, "current_move")
-
+                self.move_history_text.insert("end", move_text, "current_move")
                 self.highlight_current_move_squares(move)
             else:
-                self.move_history_text.insert(tk.END, move_text)
+                self.move_history_text.insert("end", move_text)
 
     def highlight_current_move_squares(self, move):
         """Highlight the squares involved in the current move."""
@@ -132,4 +129,4 @@ class MoveHistory(ttk.Frame):
 
     def get_current_fen(self):
         """Get the FEN for the current game state."""
-        return self
+        return self.board.fen()

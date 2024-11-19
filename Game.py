@@ -70,6 +70,7 @@ class Game:
         previousBoard = str(self.board.board)
         result = self.engine.play(self.board.board, self.timeout)
         self.move = str(result.move)
+        self.gameInfo.add_main_variation(result.move)
         self.board.push(result.move)
         self.turn = self.board.turn
         move = self.board.getMoveTCPByUCI(str(result.move), previousBoard)
@@ -109,7 +110,7 @@ class Game:
             targetSquare = liveBoard[int(str(result.move)[4])][files[str(result.move)[3]] - 1]
             while targetSquare != move["promotionPiece"]:
                 piece = pieceNames[move["promotionPiece"]]
-                input(f"Please place a {'white' if self.turn else 'black'} {piece} at the {result.move[2:4]} square and press enter...")
+                #input(f"Please place a {'white' if self.turn else 'black'} {piece} at the {result.move[2:4]} square and press enter...")
         else:
             # Move not recognised
             pass
@@ -128,7 +129,7 @@ class Game:
         if move != None and move in [str(m) for m in oldBoard.board.legal_moves]:
                     print('setting move')
                     self.move = move
-                    self.gameInfo.add_variation(chess.Move.from_uci(move))
+                    self.gameInfo.add_main_variation(chess.Move.from_uci(move))
                     self.board.push(move)
                     self.turn = self.board.turn
                     if self.board.checkMate:

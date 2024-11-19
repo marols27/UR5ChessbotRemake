@@ -408,4 +408,10 @@ class Board():
             self.legalMoves.append(x)
 
     def getPGN(self):
-        return self.board.move_stack
+        game = chess.pgn.Game
+        moves = self.board.move_stack
+        node = game
+        for move in moves:
+            node.add_variation(move)
+        return str(game)
+            
