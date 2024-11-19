@@ -1,6 +1,4 @@
-import time
-import tkinter as tk
-from tkinter import ttk, messagebox
+import customtkinter as ctk
 from components.chessboard import Chessboard  # Import the Chessboard component
 from components.move_history import MoveHistory  # Import the MoveHistory component
 from DGTBoard import DGTBoard
@@ -11,10 +9,11 @@ import Settings
 import chess
 import chess.engine
 import chess.pgn
-from playsound import playsound
+from tkinter import messagebox
+
 
 def show_game_screen(root, color, difficulty):
-    '''Show the game screen with the selected color and difficulty.'''
+    """Show the game screen with the selected color and difficulty."""
 
     for widget in root.winfo_children():
         widget.destroy()
@@ -35,37 +34,20 @@ def show_game_screen(root, color, difficulty):
     timeout = Settings.TIMEOUT
     game = Game(robot, dgt, board, engine, gameInfo, capturePos, timeout, 10, color == "white")
 
-    # Define the Ubuntu font
-    ubuntu_font = ("Ubuntu", 24)
-    ubuntu_font_bold = ("Ubuntu", 24, "bold")
-    ubuntu_font_large = ("Ubuntu", 32, "bold")
-
-    # Set up style configurations
-    style = ttk.Style()
-    style.theme_use("clam")
-
-    # Define styles for buttons and labels
-    style.configure("TFrame", background="#1a237e")
-    style.configure("TLabel", font=ubuntu_font, background="#1a237e", foreground="white")
-    style.configure("TButton", font=ubuntu_font_bold, padding=10)
-    style.configure("Confirm.TButton", font = ubuntu_font_large, background="#28a745", foreground="white")
-    style.map("Confirm.TButton",
-              background=[("active", "#218838")],
-              foreground=[("active", "white")])
-    style.configure("Resign.TButton", background="#dc3545", font=ubuntu_font_large, foreground="white")
-    style.map("Resign.TButton",
-              background=[("active", "#c82333")],
-              foreground=[("active", "white")])
+    # Define fonts
+    ubuntu_font = ctk.CTkFont(size=24, weight="normal")
+    ubuntu_font_bold = ctk.CTkFont(size=24, weight="bold")
+    ubuntu_font_large = ctk.CTkFont(size=48, weight="bold")
 
     # Create the main game frame
-    game_frame = ttk.Frame(root, style="TFrame")
-    game_frame.pack(fill="both", expand=True)
+    game_frame = ctk.CTkFrame(root)
+    game_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
     # Determine whether to flip the board based on the selected color
     flipped = (color == "black")
 
     # Chessboard frame
-    board_frame = ttk.Frame(game_frame, style="TFrame")
+    board_frame = ctk.CTkFrame(game_frame)
     board_frame.grid(row=0, column=0, padx=20, pady=20, sticky="n", rowspan=3)
 
     # Define desired square size
@@ -80,27 +62,33 @@ def show_game_screen(root, color, difficulty):
     board_canvas.update_board(starting_fen)
 
     # Move history frame
-    history_frame = ttk.Frame(game_frame, style="TFrame")
+    history_frame = ctk.CTkFrame(game_frame)
     history_frame.grid(row=0, column=1, padx=20, pady=20, sticky="n")
 
     # Action buttons frame
-    action_frame = ttk.Frame(game_frame, style="TFrame")
+    action_frame = ctk.CTkFrame(game_frame)
     action_frame.grid(row=1, column=1, padx=20, pady=10, sticky="e")
 
     # Confirm Move Button
-    confirm_move_button = ttk.Button(
+    confirm_move_button = ctk.CTkButton(
         action_frame,
         text="CONFIRM MOVE",
-        style="Confirm.TButton",
+        font=ubuntu_font_large,
+        fg_color="#28a745",
+        hover_color="#218838",
+        text_color="white",
         command=lambda: confirm_move()
     )
     confirm_move_button.pack(side="left", padx=10)
 
     # Resign Button
-    resign_button = ttk.Button(
+    resign_button = ctk.CTkButton(
         action_frame,
         text="RESIGN",
-        style="Resign.TButton",
+        font=ubuntu_font_large,
+        fg_color="#dc3545",
+        hover_color="#c82333",
+        text_color="white",
         command=lambda: resign_game()
     )
     resign_button.pack()
@@ -116,24 +104,13 @@ def show_game_screen(root, color, difficulty):
 
     def message_callback(header, text):
         print(header, text)
-        if header == "You won" or header == "You lost" or header == "It's a draw":
-            text = text + "\nDo you want to return to home menu?"
-            mbox = None
-            if header == "You won":
-                mbox = messagebox.askyesno(header, text)
-                if mbox:
-                    return_to_home()
-            elif header == "You lost":
-                mbox = messagebox.askyesno(header, text)
-                if mbox:
-                    return_to_home()
-            elif header == "It's a draw":
-                mbox = messagebox.askyesno(header, text)
-                if mbox:
-                    return_to_home()
+        if header in ["You won", "You lost", "It's a draw"]:
+            text = text + "\nDo you want to return to the home menu?"
+            if messagebox.askyesno(header, text):
+                return_to_home()
         else:
             messagebox.showinfo(header, text)
-            move_history.reset_to_current() 
+            move_history.reset_to_current()
 
     def confirm_move():
         move_history.reset_to_current()
@@ -145,20 +122,17 @@ def show_game_screen(root, color, difficulty):
             move_history.reset_to_current()
             confirm_move()
 
-    # Example function to resign the game
     def resign_game():
         resign_message = messagebox.askquestion("You have asked to resign", "Are you sure you want to resign the game?")
         if resign_message == "yes":
             return_to_home()
-
-        # Import inside the function to avoid circular import
-       
 
     def play_first_move():
         correct_start_fen = game.board.board.fen().split(" ")[0]
         if color == "black":
             current_dgt_fen = game.dgtBoard.getCurentBoardFen()
             if current_dgt_fen == correct_start_fen:
+                messagebox.showinfo("Games is ready", "The robot will move first!")
                 game.playRobotMove()
                 board_canvas.update_board(game.board.board.fen())
             else:
@@ -170,13 +144,15 @@ def show_game_screen(root, color, difficulty):
             else:
                 messagebox.showinfo("The board is set up wrong", "Please set up the board correctly and press the confirm move button.")
                 play_first_move()
-        
 
     play_first_move()
 
+
 if __name__ == "__main__":
-    root = tk.Tk()
+    ctk.set_appearance_mode("dark")  # Dark mode
+    ctk.set_default_color_theme("blue")  # Default theme
+    root = ctk.CTk()
     root.title("Chess Game")
     root.geometry("1024x768")
-    show_game_screen(root, tk.Frame(root), "black", "medium")
+    show_game_screen(root, "black", "medium")
     root.mainloop()
