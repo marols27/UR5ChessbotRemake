@@ -13,6 +13,13 @@ def show_calibration_screen(root):
     calibration_frame = ctk.CTkFrame(root, corner_radius=10)
     calibration_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
+    def calibrate_point(point):
+        if pose is not None:
+            pose.calibrate_point(point)
+            Settings.update_config()
+        else:
+            print("PoseConfigure object not initialized!")
+
     def start_calibration():
         nonlocal pose
         pose = PoseConfigure()
@@ -30,19 +37,19 @@ def show_calibration_screen(root):
         )
         set_x_axis_button = ctk.CTkButton(
             cal_button_frame, text="Set X Axis", font=ctk.CTkFont(size=26, weight="bold"), 
-            command=lambda: pose.calibrate_point("x_axis")
+            command=lambda: calibrate_point("xAxis")
         )
         set_xy_plane_button = ctk.CTkButton(
             cal_button_frame, text="Set XY Plane", font=ctk.CTkFont(size=26, weight="bold"), 
-            command=lambda: pose.calibrate_point("xy_plane")
+            command=lambda: calibrate_point("xyPlane")
         )
         set_home_button = ctk.CTkButton(
             cal_button_frame, text="Set Home", font=ctk.CTkFont(size=26, weight="bold"), 
-            command=lambda: pose.calibrate_point("home")
+            command=lambda: calibrate_point("home")
         )
         set_drop_button = ctk.CTkButton(
             cal_button_frame, text="Set Drop", font=ctk.CTkFont(size=26, weight="bold"), 
-            command=lambda: pose.calibrate_point("drop")
+            command=lambda: calibrate_point("drop")
         )
 
         # Add buttons to grid layout (horizontally aligned)
