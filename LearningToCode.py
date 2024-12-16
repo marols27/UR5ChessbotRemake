@@ -7,10 +7,4 @@ import chess.engine
 import chess.pgn
 import Settings
 from PoseConfigure import PoseConfigure
-from gui import GUI
-
-
-#pose = PoseConfigure()
-#pose.firstTimeSettup()
-
-gui = GUI()
+# This is a file used for experimenting with the UR5 robot and the DGT board
