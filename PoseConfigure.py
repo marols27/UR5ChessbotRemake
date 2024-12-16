@@ -115,3 +115,41 @@ class PoseConfigure:
         control.teachMode()
         input("Move the robot to the point and press enter to get the pose...")
         control.endTeachMode()
+    
+    def start_teach_mode(self):
+        control = rtde_control.RTDEControlInterface(self.connectionIP)
+        control.teachMode()
+    
+    def end_teach_mode(self):   
+        control = rtde_control.RTDEControlInterface(self.connectionIP)
+        control.endTeachMode()
+    
+    def calibrate_point(self, point):
+        info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
+        config = None
+        with open(self.fileName, 'r') as file:
+                config = json.load(file)
+        file.close()
+        if point == "origin":
+            print("Current Origin:",config[self.Points.ORIGIN.value])                       
+            config[self.Points.ORIGIN.value] = info.getActualTCPPose()
+            print("New Origin:",config[self.Points.ORIGIN.value])
+        elif point == "xAxis":
+            config[self.Points.XAXIS.value] = info.getActualTCPPose()
+            print("New X Axis:",config[self.Points.XAXIS.value])
+        elif point == "xyPlane":
+            config[self.Points.XYPLANE.value] = info.getActualTCPPose()
+            print("New XY Plane:",config[self.Points.XYPLANE.value])
+        elif point == "home":
+            print("Current Home:",config[self.Points.HOME.value])
+            config[self.Points.HOME.value] = info.getActualTCPPose()
+            print("New Home:",config[self.Points.HOME.value])
+        elif point == "drop":
+            config[self.Points.DROP.value] = info.getActualTCPPose()
+            print("New Drop:",config[self.Points.DROP.value])
+        else:
+            print("Invalid point!")
+
+        with open(self.fileName, 'w') as file:
+                json.dump(config, file)
+
