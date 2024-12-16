@@ -11,6 +11,7 @@ import chess
 import chess.engine
 import chess.pgn
 from tkinter import messagebox
+import navigation
 
 
 def show_game_screen(root, color, difficulty):
@@ -99,9 +100,8 @@ def show_game_screen(root, color, difficulty):
     move_history.grid(row=0, column=0, padx=20, pady=20, sticky="n")
 
     def return_to_home():
-        game_frame.destroy()
-        from home_screen import show_home_screen
-        show_home_screen(root)
+        engine.quit()
+        navigation.navigate_to_home(root)
 
     def message_callback(header, text):
         print(header, text)

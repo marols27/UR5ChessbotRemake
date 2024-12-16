@@ -1,6 +1,5 @@
 import customtkinter as ctk
-from game_screen import show_game_screen
-
+import navigation
 def show_selection_screen(root):
     # Destroy any existing frames
     for widget in root.winfo_children():
@@ -89,7 +88,7 @@ def show_selection_screen(root):
         selected_difficulty = difficulty_var.get()
         selected_color = color_var.get()
         print(f"Selected Difficulty: {selected_difficulty}, Selected Color: {selected_color}")
-        show_game_screen(root, selected_color, selected_difficulty)
+        navigation.navigate_to_game(root, selected_color, selected_difficulty)
 
     # Next Button
     next_button = ctk.CTkButton(

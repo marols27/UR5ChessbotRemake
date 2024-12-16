@@ -63,6 +63,6 @@ def show_home_screen(root):
         buttons_frame, 
         text="Exit", 
         font=ctk.CTkFont(size=24, weight="bold"),
-        command=root.quit
+        command=root.destroy
     )
     exit_button.place(relx=2 * (button_width + button_spacing), rely=0.1, relwidth=button_width, relheight=0.8) 
