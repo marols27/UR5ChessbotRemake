@@ -41,7 +41,7 @@ def show_home_screen(root):
         anchor="w",
         font=ctk.CTkFont(size=52, weight="bold")
     )
-    welcome_label.pack(pady=(10, 5))
+    welcome_label.pack()
 
     subtitle_text = '''
         Challenge the HVL Robotics chess robot.
