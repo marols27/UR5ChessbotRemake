@@ -117,7 +117,6 @@ class PoseConfigure:
         control.endTeachMode()
     
     def start_teach_mode(self):
-       
         control = rtde_control.RTDEControlInterface(self.connectionIP)
         gripper = RobotiqGripper(control)
         gripper.activate()
