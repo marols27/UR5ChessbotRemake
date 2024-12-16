@@ -9,7 +9,10 @@ def show_selection_screen(root):
     # Common button dimensions
     BUTTON_HEIGHT = 150
     BUTTON_FONT = ctk.CTkFont(size=36, weight="bold")
-    FG_COLOR_DEFAULT = "grey"
+    CORNER__RADIUS = 40
+    BORDER_COLOR = "white"
+    BORDER_WIDTH = 10
+    FG_COLOR_DEFAULT = "#252525"
     TEXT_COLOR_DEFAULT = "white"
 
     # Function to update button styles when selected
@@ -17,16 +20,17 @@ def show_selection_screen(root):
         for value, button in buttons.items():
             if selected_var.get() == value:
                 button.configure(fg_color=color)
+                button.configure(border_color=color)
                 if color in ["white", "yellow"]:  # Ensure text is visible on light backgrounds
                     button.configure(text_color="black")
                 else:
                     button.configure(text_color="white")
             else:
-                button.configure(fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT)
+                button.configure(fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, border_color=BORDER_COLOR)
 
     # Main Frame
     selection_frame = ctk.CTkFrame(root, corner_radius=10)
-    selection_frame.pack(fill="both", expand=True, padx=20, pady=20)
+    selection_frame.pack(fill="both", padx=20, pady=20)
 
     # Configuring grid to be responsive
     selection_frame.grid_columnconfigure(0, weight=1)
@@ -47,16 +51,19 @@ def show_selection_screen(root):
     difficulty_buttons = {
         "easy": ctk.CTkButton(
             selection_frame, text="EASY", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            corner_radius=CORNER__RADIUS, border_color=BORDER_COLOR, border_width=BORDER_WIDTH,
             font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [difficulty_var.set("easy"), update_button_style(difficulty_var, difficulty_buttons, "green")]
         ),
         "medium": ctk.CTkButton(
             selection_frame, text="MEDIUM", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            corner_radius=CORNER__RADIUS, border_color=BORDER_COLOR, border_width=BORDER_WIDTH,
             font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [difficulty_var.set("medium"), update_button_style(difficulty_var, difficulty_buttons, "yellow")]
         ),
         "hard": ctk.CTkButton(
             selection_frame, text="HARD", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            corner_radius=CORNER__RADIUS, border_color=BORDER_COLOR, border_width=BORDER_WIDTH,
             font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [difficulty_var.set("hard"), update_button_style(difficulty_var, difficulty_buttons, "red")]
         )
@@ -74,11 +81,13 @@ def show_selection_screen(root):
     color_buttons = {
         "white": ctk.CTkButton(
             selection_frame, text="WHITE", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            corner_radius=CORNER__RADIUS, border_color=BORDER_COLOR, border_width=BORDER_WIDTH,
             font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [color_var.set("white"), update_button_style(color_var, color_buttons, "white")]
         ),
         "black": ctk.CTkButton(
             selection_frame, text="BLACK", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            corner_radius=CORNER__RADIUS, border_color=BORDER_COLOR, border_width=BORDER_WIDTH,
             font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [color_var.set("black"), update_button_style(color_var, color_buttons, "black")]
         )
@@ -102,13 +111,24 @@ def show_selection_screen(root):
         print(f"Selected Difficulty: {selected_difficulty}, Selected Color: {selected_color}")
         navigation.navigate_to_game(root, selected_color, selected_difficulty)
 
-    # Next Button
-    next_button = ctk.CTkButton(
-        selection_frame, text="START", fg_color="#dc3545", text_color="white", 
+    # Back Button
+    back_button = ctk.CTkButton(
+        
+        selection_frame, text="BACK", text_color="white", fg_color="#ff6f68", 
+        corner_radius=CORNER__RADIUS, border_color="black", border_width=BORDER_WIDTH,
+        font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
+        hover_color="#0056b3", command=lambda: navigation.navigate_to_home(root)
+    )
+    back_button.grid(row=5, column=0, pady=50, sticky="nsew")
+
+    # Start Button
+    start_button = ctk.CTkButton(
+        selection_frame, text="START", text_color="white", fg_color="#00cdac", 
+        corner_radius=CORNER__RADIUS, border_color="black", border_width=BORDER_WIDTH,
         font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
         hover_color="#c82333", command=handle_next,
     )
-    next_button.grid(row=5, column=1, pady=50, sticky="nsew")
+    start_button.grid(row=5, column=2, pady=50, sticky="nsew")
 
 # Example usage
 if __name__ == "__main__":

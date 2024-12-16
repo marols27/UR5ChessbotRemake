@@ -19,11 +19,11 @@ def show_calibration_screen(root):
     Move the robot to the desired position and press the corresponding button to calibrate the robot's pose.
     
     The following points can be calibrated:
-    1. Set Origin: Set the origin of the robot's pose. It is marked with #1 on the chessboard.
-    2. Set X Axis: Set the X axis of the robot's pose. It is marked with #2 on the chessboard.
-    3. Set XY Plane: Set the XY plane of the robot's pose. It is marked with #3 on the chessboard.
-    4. Set Home: Set the home position of the robot's pose. This should be the position where the robot starts and ends its movements.
-    5. Set Drop: Set the drop position of the robot's pose. This is the position where the robot drops the captured pieces.
+    1. Set Origin: Set the origin of the robot's pose.
+    2. Set X Axis: Set the X axis of the robot's pose.
+    3. Set XY Plane: Set the XY plane of the robot's pose.
+    4. Set Home: Set the home position where the robot should return to.
+    5. Set Drop: Set the drop position where the robot should drop captured pieces.
 
     Press the "Done" button to save the calibration points and navigate to the home screen.
     '''
@@ -57,15 +57,15 @@ def show_calibration_screen(root):
         # Buttons
         button_font = ctk.CTkFont(size=30, weight="bold")
         set_origin_button = ctk.CTkButton(
-            cal_button_frame, text="Set Origin", font=button_font, 
+            cal_button_frame, text="#1 Set Origin a1", font=button_font, 
             command=lambda: pose.calibrate_point("origin")
         )
         set_x_axis_button = ctk.CTkButton(
-            cal_button_frame, text="Set X Axis", font=button_font, 
+            cal_button_frame, text="#2 Set X Axis h1", font=button_font, 
             command=lambda: calibrate_point("xAxis")
         )
         set_xy_plane_button = ctk.CTkButton(
-            cal_button_frame, text="Set XY Plane", font=button_font, 
+            cal_button_frame, text="#3 Set XY Plane a8", font=button_font, 
             command=lambda: calibrate_point("xyPlane")
         )
         set_home_button = ctk.CTkButton(
