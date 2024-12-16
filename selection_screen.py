@@ -1,23 +1,28 @@
 import customtkinter as ctk
 import navigation
+
 def show_selection_screen(root):
     # Destroy any existing frames
     for widget in root.winfo_children():
         widget.destroy()
 
-    # Padding variables for easy adjustment
-    BUTTON_PADX = 20
-    BUTTON_PADY = 20
+    # Common button dimensions
+    BUTTON_HEIGHT = 150
+    BUTTON_FONT = ctk.CTkFont(size=36, weight="bold")
+    FG_COLOR_DEFAULT = "grey"
+    TEXT_COLOR_DEFAULT = "white"
 
     # Function to update button styles when selected
     def update_button_style(selected_var, buttons, color):
         for value, button in buttons.items():
             if selected_var.get() == value:
                 button.configure(fg_color=color)
-                if(color == "white" or color == "yellow"):
-                    button.configure(text_color="black")                
+                if color in ["white", "yellow"]:  # Ensure text is visible on light backgrounds
+                    button.configure(text_color="black")
+                else:
+                    button.configure(text_color="white")
             else:
-                button.configure(fg_color="grey", text_color="white")
+                button.configure(fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT)
 
     # Main Frame
     selection_frame = ctk.CTkFrame(root, corner_radius=10)
@@ -30,10 +35,10 @@ def show_selection_screen(root):
 
     # Title label
     title_label = ctk.CTkLabel(
-        selection_frame, text="Choose Difficulty and Piece Color", 
-        font=ctk.CTkFont(size=24, weight="bold")
+        selection_frame, text="Choose Difficulty", 
+        font=ctk.CTkFont(size=72, weight="bold")
     )
-    title_label.grid(row=0, column=0, columnspan=3, pady=10)
+    title_label.grid(row=0, column=0, columnspan=3, pady=40)
 
     # Difficulty variable
     difficulty_var = ctk.StringVar(value="easy")
@@ -41,18 +46,18 @@ def show_selection_screen(root):
     # Difficulty buttons
     difficulty_buttons = {
         "easy": ctk.CTkButton(
-            selection_frame, text="EASY", fg_color="grey", text_color="white", hover = False,
-            font=ctk.CTkFont(size=36, weight="bold"),
+            selection_frame, text="EASY", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [difficulty_var.set("easy"), update_button_style(difficulty_var, difficulty_buttons, "green")]
         ),
         "medium": ctk.CTkButton(
-            selection_frame, text="MEDIUM", fg_color="grey", text_color="white", hover=False,
-            font=ctk.CTkFont(size=36, weight="bold"),
+            selection_frame, text="MEDIUM", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [difficulty_var.set("medium"), update_button_style(difficulty_var, difficulty_buttons, "yellow")]
         ),
         "hard": ctk.CTkButton(
-            selection_frame, text="HARD", fg_color="grey", text_color="white", hover=False,
-            font=ctk.CTkFont(size=36, weight="bold"),
+            selection_frame, text="HARD", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [difficulty_var.set("hard"), update_button_style(difficulty_var, difficulty_buttons, "red")]
         )
     }
@@ -68,20 +73,27 @@ def show_selection_screen(root):
     # Color buttons
     color_buttons = {
         "white": ctk.CTkButton(
-            selection_frame, text="WHITE", fg_color="grey", text_color="white", hover=False,
-            font=ctk.CTkFont(size=36, weight="bold"),
+            selection_frame, text="WHITE", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [color_var.set("white"), update_button_style(color_var, color_buttons, "white")]
         ),
         "black": ctk.CTkButton(
-            selection_frame, text="BLACK", fg_color="grey", text_color="white", hover=False,
-            font=ctk.CTkFont(size=36, weight="bold"),
+            selection_frame, text="BLACK", fg_color=FG_COLOR_DEFAULT, text_color=TEXT_COLOR_DEFAULT, 
+            font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
             command=lambda: [color_var.set("black"), update_button_style(color_var, color_buttons, "black")]
         )
     }
 
+    # Label for Color Section
+    color_label = ctk.CTkLabel(
+        selection_frame, text="Choose Color", 
+        font=ctk.CTkFont(size=72, weight="bold")
+    )
+    color_label.grid(row=2, column=0, columnspan=3, pady=40)
+
     # Place color buttons
-    color_buttons["white"].grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
-    color_buttons["black"].grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
+    color_buttons["white"].grid(row=3, column=0, padx=10, pady=50, sticky="nsew")
+    color_buttons["black"].grid(row=3, column=1, padx=10, pady=50, sticky="nsew")
 
     # Function for "Next" button command
     def handle_next():
@@ -92,11 +104,11 @@ def show_selection_screen(root):
 
     # Next Button
     next_button = ctk.CTkButton(
-        selection_frame, text="NEXT", fg_color="#dc3545", text_color="white",
-        font=ctk.CTkFont(size=36, weight="bold"),
-        hover_color="#c82333", command=handle_next
+        selection_frame, text="START", fg_color="#dc3545", text_color="white", 
+        font=BUTTON_FONT, height=BUTTON_HEIGHT, hover=False,
+        hover_color="#c82333", command=handle_next,
     )
-    next_button.grid(row=3, column=1, pady=20, sticky="nsew")
+    next_button.grid(row=5, column=1, pady=50, sticky="nsew")
 
 # Example usage
 if __name__ == "__main__":
