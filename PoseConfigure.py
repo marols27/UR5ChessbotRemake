@@ -117,7 +117,11 @@ class PoseConfigure:
         control.endTeachMode()
     
     def start_teach_mode(self):
+       
         control = rtde_control.RTDEControlInterface(self.connectionIP)
+        gripper = RobotiqGripper(control)
+        gripper.activate()
+        gripper.move(37)
         control.teachMode()
     
     def end_teach_mode(self):   
@@ -152,4 +156,5 @@ class PoseConfigure:
 
         with open(self.fileName, 'w') as file:
                 json.dump(config, file)
+                file.flush()
 
