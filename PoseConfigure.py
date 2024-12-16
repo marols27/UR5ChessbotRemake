@@ -81,6 +81,7 @@ class PoseConfigure:
         #print(config[self.Points.DROP.value])
         with open(self.fileName, 'w') as file:
             json.dump(config, file)
+        control.endTeachMode()
     
     def recalibrate(self, point: Points, connectionIP: str = '172.31.1.144', fileName: str = 'config.json'):
         """
