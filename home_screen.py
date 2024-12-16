@@ -1,7 +1,5 @@
 import customtkinter as ctk
-from selection_screen import show_selection_screen
-from PoseConfigure import PoseConfigure
-import Settings
+from navigation import navigate_to_selection, navigate_to_calibration
 
 def show_home_screen(root):
     root.attributes('-fullscreen', True)
@@ -12,8 +10,6 @@ def show_home_screen(root):
     # Configure appearance and theme
     ctk.set_appearance_mode("dark")  # Dark mode
     ctk.set_default_color_theme("blue")  # Default theme
-
-    pose = PoseConfigure()
 
     # Create the main frame with a dark background
     home_frame = ctk.CTkFrame(root, corner_radius=10)
@@ -49,7 +45,7 @@ def show_home_screen(root):
         buttons_frame, 
         text="Start Game", 
         font=ctk.CTkFont(size=24, weight="bold"),
-        command=lambda: show_selection_screen(root)
+        command=lambda: navigate_to_selection(root)
     )
     start_button.place(relx=0, rely=0.1, relwidth=button_width, relheight=0.8)
 
@@ -58,7 +54,7 @@ def show_home_screen(root):
         buttons_frame,
         text="Configure Robot",
         font=ctk.CTkFont(size=24, weight="bold"),
-        command=lambda: pose.firstTimeSettup(connectionIP=Settings.CONNECTION_IP)
+        command=lambda: navigate_to_calibration(root)
     )
     configure_robot_button.place(relx=button_width + button_spacing, rely=0.1, relwidth=button_width, relheight=0.8)
 
@@ -69,4 +65,4 @@ def show_home_screen(root):
         font=ctk.CTkFont(size=24, weight="bold"),
         command=root.quit
     )
-    exit_button.place(relx=2 * (button_width + button_spacing), rely=0.1, relwidth=button_width, relheight=0.8)
+    exit_button.place(relx=2 * (button_width + button_spacing), rely=0.1, relwidth=button_width, relheight=0.8) 
