@@ -46,6 +46,15 @@ except:
     HOME = TCP(config[PoseConfigure.Points.HOME.value])
     CAPTURE_POSE = TCP(config[PoseConfigure.Points.DROP.value])
 
+def update_config():
+    with open(FILE_NAME, 'r') as file:
+        config = json.loads(file.read())
+    global ORIGIN, XAXIS, XYPLANE, HOME, CAPTURE_POSE
+    ORIGIN = TCP(config[PoseConfigure.Points.ORIGIN.value])
+    XAXIS = TCP(config[PoseConfigure.Points.XAXIS.value])
+    XYPLANE = TCP(config[PoseConfigure.Points.XYPLANE.value])
+    HOME = TCP(config[PoseConfigure.Points.HOME.value])
+    CAPTURE_POSE = TCP(config[PoseConfigure.Points.DROP.value])
 
 # Board Params
 START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"  
