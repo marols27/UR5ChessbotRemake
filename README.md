@@ -11,6 +11,14 @@ The HVL Robotics Chess Robot is a student-developed project aimed at providing h
 - Offering a graphical user interface (GUI) for calibration, difficulty and color selection, move confirmations, historical move review, and more
 
 This robot has been showcased at HVL Robotics events to visitors, demonstrating the possibilities of combining robotics, computer vision, and AI-driven gameplay.
+## Current Architecture diagrams
+
+### Domain diagram
+![domain](assets/images/domaindiagram.png)
+
+### UML diagram
+![uml](assets/images/uml.png)
+
 
 ## Current system capabilities
 - [X] In app calibration of the robot
