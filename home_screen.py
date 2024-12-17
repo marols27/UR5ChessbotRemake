@@ -51,9 +51,10 @@ def show_home_screen(root):
 
         1. Press the "Play Game" button to get started.
         2. Choose the difficulty level and a color to play as.
-        3. Press confirm move after making a move.
-        4. The robot will make its move after you confirm yours.
-        5. Let the robot finish its move before making your next move.
+        3. Press start to begin the game.
+        4. Press confirm move after making a move.
+        5. The robot will make its move after you confirm yours.
+        6. Let the robot finish its move before making your next move.
         '''
 
 
