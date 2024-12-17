@@ -16,8 +16,10 @@ This robot has been showcased at HVL Robotics events to visitors, demonstrating 
 - [X] In app calibration of the robot
 - [X] Select color and difficulty
 - [X] Can do every type of move(Castling, en passant, capturing and normal moves)
+- [X] Play a complete game of chess
 - [X] View the movehistory of the current game
 - [X] Resign a game
+- [X] Win and lose
 
 ## Required Equipment
 - **DGT Chessboard**: Ensures accurate piece detection and move validation. [View Product](https://digitalgametechnology.com/products/home-use-e-boards/usb-e-board-rosewood-in-gift-box)
