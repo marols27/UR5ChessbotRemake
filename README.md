@@ -14,9 +14,11 @@ This robot has been showcased at HVL Robotics events to visitors, demonstrating 
 ## Current Architecture diagrams
 
 ### Domain diagram
+This diagram gives a good overview of the system architecture, what classes that rely on eachother and what communicates between the gui and backend
 ![domain](assets/images/domaindiagram.png)
 
 ### UML diagram
+This is a more detailed diagram showing hat each class sonsits off, this is prone to deprecation, but this was the state of the system Thursday 17. December 2024
 ![uml](assets/images/uml.png)
 
 
