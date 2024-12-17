@@ -41,6 +41,12 @@ def show_game_screen(root, color, difficulty):
     ubuntu_font_bold = ctk.CTkFont(size=24, weight="bold")
     ubuntu_font_large = ctk.CTkFont(size=48, weight="bold")
 
+    #Buttonconfigurations
+    BUTTON_HEIGHT = 150
+    BUTTON_CORNER_RADIUS = 40
+    BORDER_COLOR = "white"
+    BORDER_WIDTH = 10
+
     # Create the main game frame
     game_frame = ctk.CTkFrame(root)
     game_frame.pack(fill="both", expand=True, padx=20, pady=20)
@@ -77,8 +83,12 @@ def show_game_screen(root, color, difficulty):
         text="CONFIRM MOVE",
         font=ubuntu_font_large,
         fg_color="#28a745",
-        hover_color="#218838",
+        hover=False,
         text_color="white",
+        border_color=BORDER_COLOR,
+        border_width=BORDER_WIDTH,
+        height=BUTTON_HEIGHT,
+        corner_radius=BUTTON_CORNER_RADIUS,
         command=lambda: confirm_move()
     )
     confirm_move_button.pack(side="left", padx=10)
@@ -89,7 +99,11 @@ def show_game_screen(root, color, difficulty):
         text="RESIGN",
         font=ubuntu_font_large,
         fg_color="#dc3545",
-        hover_color="#c82333",
+        hover=False,
+        border_color=BORDER_COLOR,
+        border_width=BORDER_WIDTH,
+        height=BUTTON_HEIGHT,
+        corner_radius=BUTTON_CORNER_RADIUS,
         text_color="white",
         command=lambda: resign_game()
     )
