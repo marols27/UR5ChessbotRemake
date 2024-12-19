@@ -18,11 +18,11 @@ This robot has been showcased at HVL Robotics events to visitors, demonstrating 
 This is a domaindoagram giving an overview of the components within the program. 
 ```mermaid
 flowchart TD
-    subgraph GUI["Graphical user interface"]
-        config_screen[config_screen]
-        home_screen[home_screen]
-        selection_screen[selection_screen]
-        game_screen[game_screen]
+    subgraph Tkinter_GUI["Tkinter GUI"]
+        config_screen[Config Screen]
+        home_screen[Home Screen]
+        selection_screen[Selection Screen]
+        game_screen[Game Screen]
 
         config_screen --> home_screen
         home_screen --> selection_screen
@@ -32,17 +32,20 @@ flowchart TD
     end
 
     subgraph Backend
-        PoseConfigure[PoseConfigure]
+        PoseConfigure[Pose Configure]
         Settings[Settings]
-        Game[Game]
-        UR5Robot[UR5Robot]
-        DGTBoard[DGTBoard]
-        PythonChess[Python Chess]
-        Board[Board]
-        ToolCenterPoint[TCP]
-        UR5Feature[UR5Feature]
-
-        PoseConfigure --> Settings
+        Game[Game Logic]
+        UR5Robot[UR5 Robot Controller]
+        DGTBoard[DGT Board Handler]
+        PythonChess[Python Chess Engine]
+        Board[Chess Board Logic]
+        ToolCenterPoint[Tool Center Point]
+        UR5Feature[UR5 Features]
+        
+        PoseConfigure -->|Writes to| ConfigFile[(Config File)]
+        ConfigFile -->|Reads new values| Settings
+        config_screen -->|Updates Variables| Settings
+        config_screen --> PoseConfigure
         Game --> Settings
         Game --> DGTBoard
         Game --> Board
@@ -55,7 +58,14 @@ flowchart TD
         UR5Robot --> UR5Feature
     end
 
-    GUI --> Backend
+    subgraph app.py[app.py]
+        app
+    end
+
+    app-->|Initiates homescreen| home_screen
+
+    game_screen -->|Creates & Uses| Game
+
 
 ```
 
