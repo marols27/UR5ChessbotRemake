@@ -28,7 +28,7 @@ flowchart TD
     calibration -->|Press done| home_screen["Home Screen"]
     home_screen --> |Press Play game|choose_difficulty["Choose Difficulty"]
     choose_difficulty --> choose_color["Choose color"]
-    choose_color -->|Press start| start["Start"]
+    choose_color -->|Press start| start{"Start"}
     
     start -->|Player is playing white| confirm_move["Press Confirm Move"]
     start -->|Player is playing black| robot_move[Robot Move]
