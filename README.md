@@ -1,5 +1,6 @@
 # UR5ChessbotRemake
 
+    
 ## Introduction
 The HVL Robotics Chess Robot is a student-developed project aimed at providing hands-on experience to students in automation and informatics. The project integrates various challenging tasks such as:
 
@@ -14,12 +15,150 @@ This robot has been showcased at HVL Robotics events to visitors, demonstrating 
 ## Current Architecture diagrams
 
 ### Domain diagram
-This diagram gives a good overview of the system architecture, what classes that rely on eachother and what communicates between the gui and backend
-![domain](assets/images/domaindiagram.png)
+This is a domaindoagram giving an overview of the components within the program. 
+```mermaid
+flowchart TD
+    subgraph GUI["Graphical user interface"]
+        config_screen[config_screen]
+        home_screen[home_screen]
+        selection_screen[selection_screen]
+        game_screen[game_screen]
+
+        config_screen --> home_screen
+        home_screen --> selection_screen
+        selection_screen --> game_screen
+        game_screen --> home_screen
+        config_screen --> game_screen
+    end
+
+    subgraph Backend
+        PoseConfigure[PoseConfigure]
+        Settings[Settings]
+        Game[Game]
+        UR5Robot[UR5Robot]
+        DGTBoard[DGTBoard]
+        PythonChess[Python Chess]
+        Board[Board]
+        ToolCenterPoint[TCP]
+        UR5Feature[UR5Feature]
+
+        PoseConfigure --> Settings
+        Game --> Settings
+        Game --> DGTBoard
+        Game --> Board
+        Game --> PythonChess
+        Game --> UR5Robot
+        Board --> PythonChess
+        Board --> UR5Feature
+        Board --> ToolCenterPoint
+        UR5Robot --> ToolCenterPoint
+        UR5Robot --> UR5Feature
+    end
+
+    GUI --> Backend
+
+```
+
 
 ### UML diagram
-This is a more detailed diagram showing hat each class sonsits off, this is prone to deprecation, but this was the state of the system Thursday 17. December 2024
-![uml](assets/images/uml.png)
+This is a more detailed diagram of the backend going into detail about the differen classesw within the program
+```mermaid
+classDiagram
+    class UR5Robot {
+        + travelHeight: float
+        + homePose: TCP
+        + connectionIP: str
+        + acceleration: float
+        + speed: float
+        + gripperSpeed: float
+        + gripperForce: float
+        + control: rtde_control.RTDEControlInterface(connectionIP)
+        + info: rtde_receive.RTDEReceiveInterface(connectionIP)
+        + getPose(): TCP
+        + freeDrive(): void
+        + goTo(pos: list[float]): void
+        + grab(): void
+        + drop(): void
+        + home(): void
+        + movePiece(fromPos: list[float], toPos: list[float], home=True): void
+        + capturePiece(fromPos: list[float], toPos: list[float], capturePos: list[float]): void
+        + enPassant(fromPos: list[float], toPos: list[float], targetPos: list[float]): void
+        + castle(fromPosKing: list[float], toPosKing: list[float], fromPosRook: list[float], toPosRook: list[float]): void
+        + promotion(fromPos: list[float], toPos: list[float]): void
+        + capturePromotion(fromPos: list[float], toPos: list[float], capturePos: list[float]): void
+    }
+    class Game {
+        + robot: UR5Robot
+        + dgtBoard: DGTBoard
+        + board: Board
+        + engine: chess.engine.SimpleEngine
+        + gameInfo: chess.pgn.Game
+        + capturePos: TCP
+        + timeout: chess.engine.limit
+        + difficulty: int
+        + color: bool
+        + getPGN(): list[str]
+        + playerMove(): void
+        + runGameLoop(): void
+        + playRobotMove(): void
+    }
+
+    class DGTBoard {
+        + loop: event_loop
+        + dgtConnection: asyncdgt.auto_connect(loop, port)
+        + getCurrentBoard(): string
+        + getCurrentBoardFen(): string
+        + run(): void
+    }
+
+    class PoseConfigure {
+        + connectionIP: str
+        + fileName: str
+        + firstTimeSetup(connectionIP: str, filename: str): void
+        + recalibrate(point: Points, connectionIP: str, fileName='config.json'): void
+        + freeMove(): void
+        + start_teach_mode(): void
+        + end_teach_mode(): void
+        + calibrate_point(point: string): void
+    }
+
+    class Board {
+        + startFen: str
+        + feature: URSFeature
+        + boardSize: float
+        + squareSize: float
+        + getSquareTCP(boardPos: str): TCP
+        + getUCItoC(board: str): str
+        + getMoveTCPbyUCI(self, uciMove: str, previousBoard: str): dict[str, TCP, TCP, TCP]
+        + strBoardToMatrix(self, board: str): list[list[str]]
+        + push(uci): void
+        + getPGN(): str
+    }
+
+    class ToolCenterPoint {
+        + TCP: list[float]
+        + position(): list[float]
+        + orientation(): list[float]
+    }
+
+    class URSFeature {
+        + Origin: TCP
+        + XAxis: TCP
+        + XYPlane: TCP
+        + xVector: ndarray
+        + yVector: ndarray
+        + zVector: ndarray
+    }
+
+    UR5Robot --> ToolCenterPoint
+    UR5Robot --> URSFeature
+    UR5Robot --> PoseConfigure
+    UR5Robot --> Game
+    Game --> DGTBoard
+    Game --> Board
+    Board --> ToolCenterPoint
+    Board --> URSFeature
+```
 
 
 ## Current system capabilities
