@@ -15,29 +15,30 @@ class MoveHistory(ctk.CTkFrame):
         # Label
         move_history_label = ctk.CTkLabel(
             self, text="Move History",
-            font=ctk.CTkFont(size=20, weight="bold")
+            font=ctk.CTkFont(size=32, weight="bold")
         )
         move_history_label.grid(row=0, column=0, columnspan=4, pady=10, sticky="ew")
 
         # Textbox for displaying moves
         self.move_history_text = ctk.CTkTextbox(
-            self, height=300, width=400, font=ctk.CTkFont(size=16),
+            self, height=300, width=400, font=ctk.CTkFont(size=24),
             fg_color="#666666", text_color="white", wrap="word", padx=10, pady=10
         )
         self.move_history_text.grid(row=1, column=0, columnspan=4, pady=10)
-        #self.move_history_text.tag_configure("current_move", foreground="red")
-
+        
         # Navigation buttons
-        back_button = ctk.CTkButton(self, text="<<", command=self.first_move, width=60)
+        ARROW_SIZE = 30
+
+        back_button = ctk.CTkButton(self, text="↢↢", command=self.first_move, width=60, font=ctk.CTkFont(size=ARROW_SIZE))
         back_button.grid(row=2, column=0, pady=10, padx=5)
 
-        prev_button = ctk.CTkButton(self, text="<", command=self.prev_move, width=60)
+        prev_button = ctk.CTkButton(self, text="↢", command=self.prev_move, width=60, font=ctk.CTkFont(size=ARROW_SIZE))
         prev_button.grid(row=2, column=1, pady=10, padx=5)
 
-        next_button = ctk.CTkButton(self, text=">", command=self.next_move, width=60)
+        next_button = ctk.CTkButton(self, text="↣", command=self.next_move, width=60, font=ctk.CTkFont(size=ARROW_SIZE))
         next_button.grid(row=2, column=2, pady=10, padx=5)
 
-        forward_button = ctk.CTkButton(self, text=">>", command=self.last_move, width=60)
+        forward_button = ctk.CTkButton(self, text="↣↣", command=self.last_move, width=60, font=ctk.CTkFont(size=ARROW_SIZE))
         forward_button.grid(row=2, column=3, pady=10, padx=5)
 
     def load_moves(self, board):
@@ -55,22 +56,31 @@ class MoveHistory(ctk.CTkFrame):
         self.update_move_history()
 
     def update_move_history(self):
-        """Update the displayed move history text."""
+        """Update the displayed move history text with moves aligned in pairs."""
         self.move_history_text.delete('1.0', "end")
         self.board.reset()  # Ensure the board starts from the initial position
 
+        move_line = ""  # Temporary storage for each line of moves
         for i, move in enumerate(self.moves):
-            print(move)
             san_move = self.board.san(move)
             self.board.push(move)
-            prefix = f"{i // 2 + 1}. " if i % 2 == 0 else " "
-            move_text = prefix + san_move + " "
-
+            
+            # Formatting the move pair with spacing
+            if i % 2 == 0:  # White move
+                move_line = f"{i // 2 + 1}. {san_move}".ljust(40)  # Left-align the white move
+            else:  # Black move
+                move_line += f"{san_move}"  # Append the black move to the line
+                self.move_history_text.insert("end", move_line + "\n")  # Insert line and line-shift
+                move_line = ""  # Reset for the next line
+            
+            # Highlight current move if applicable
             if i == self.current_move_index:
-                self.move_history_text.insert("end", move_text, "current_move")
                 self.highlight_current_move_squares(move)
-            else:
-                self.move_history_text.insert("end", move_text)
+
+        # If the last move was a single white move (no black move yet)
+        if move_line:
+            self.move_history_text.insert("end", move_line + "\n")
+
 
     def highlight_current_move_squares(self, move):
         """Highlight the squares involved in the current move."""
