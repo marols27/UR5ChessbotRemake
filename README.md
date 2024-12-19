@@ -227,8 +227,11 @@ classDiagram
 - **UR5 Robot**: A robotic arm for physically moving the chess pieces. [View Product](https://www.universal-robots.com/no/produkter/ur5-robot/)
 - **Touchscreen (Optional)**: Enhances user interaction and accessibility. [View Product](https://raspberrypi.dk/no/produkt/133-hdmi-touchscreen-display-med-case/?currency=NOK)
 - **Computer**: Currently the main platform. (Testing on Raspberry Pi is planned for future iterations.)
-- **Operating System**: Currently tested only on an Ubuntu Foxy virtual machine.
+- **Operating System**: Currently tested only on an Ubuntu Foxy virtual machine.[Read about it here](https://docs.ros.org/en/foxy/Installation/Ubuntu-Install-Debians.html)
 
+## Changing settings
+At the moment only configuration of the robot is possible to change from the GUI, the rest has to be manually changed in the Settings.py file.
+Remember evaluate the safety of changes related to the robot, to high speeds could create danger for users, rule of thumb is to keep the robot muving under 250mm a second
 
 ## Installing Requirements
 1. **Python Virtual Environment (Recommended)**  
