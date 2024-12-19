@@ -1,7 +1,7 @@
 ![Python](https://img.shields.io/badge/python-3.8+-blue)
 
 # UR5ChessbotRemake
-![The hvl robotics chessrobot](demoimage.png_ "Image og setup")
+![The hvl robotics chessrobot](demoimage.png "Image og setup")
 
 
 ## Introduction
