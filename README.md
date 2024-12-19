@@ -204,12 +204,12 @@ classDiagram
 
     UR5Robot --> ToolCenterPoint
     UR5Robot --> URSFeature
-    UR5Robot --> PoseConfigure
-    UR5Robot --> Game
-    Game --> DGTBoard
-    Game --> Board
     Board --> ToolCenterPoint
     Board --> URSFeature
+    Game --> Board
+    Game --> DGTBoard
+    Game --> UR5Robot
+
 ```
 
 
