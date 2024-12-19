@@ -237,8 +237,4 @@ source venv/bin/activate
 python3 app.py
 ```
 ## Future improvments
-- [ ] **Testing and optimizing performance on raspberry pi**
-- [ ] **Handle threefoldrepetition**
-- [ ] **Handle insufficient material**
-- [ ] **Adding game review at the end of games**
-- [ ] **Adding chessvariations like chess960**
+See issues!
