@@ -44,34 +44,35 @@ This is a domaindoagram giving an overview of the components within the program.
 ```mermaid
 flowchart TD
     subgraph Tkinter_GUI["Tkinter GUI"]
-        config_screen[Config Screen]
+        calibration_screen[Calibration Screen]
         home_screen[Home Screen]
         selection_screen[Selection Screen]
         game_screen[Game Screen]
 
-        config_screen --> home_screen
+        calibration_screen --> home_screen
         home_screen --> selection_screen
         selection_screen --> game_screen
+        selection_screen --> home_screen
         game_screen --> home_screen
-        config_screen --> game_screen
+        home_screen --> calibration_screen
     end
 
     subgraph Backend
         PoseConfigure[Pose Configure]
         Settings[Settings]
-        Game[Game Logic]
-        UR5Robot[UR5 Robot Controller]
-        DGTBoard[DGT Board Handler]
-        PythonChess[Python Chess Engine]
-        Board[Chess Board Logic]
+        Game[Game]
+        UR5Robot[UR5Robot]
+        DGTBoard[DGTBoard]
+        PythonChess[Python Chess]
+        Board[Board]
         ToolCenterPoint[Tool Center Point]
-        UR5Feature[UR5 Features]
+        UR5Feature[UR5Feature]
         
         PoseConfigure -->|Writes to| ConfigFile[(Config File)]
         ConfigFile -->|Reads new values| Settings
-        config_screen -->|Updates Variables| Settings
-        config_screen --> PoseConfigure
-        Game --> Settings
+        calibration_screen -->|Updates Variables| Settings
+        calibration_screen --> PoseConfigure
+        game_screen --> Settings
         Game --> DGTBoard
         Game --> Board
         Game --> PythonChess
