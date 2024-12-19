@@ -1,4 +1,8 @@
+![Python](https://img.shields.io/badge/python-3.8+-blue)
+
 # UR5ChessbotRemake
+![The hvl robotics chessrobot](demoimage.png_ "Image og setup")
+
 
 ## Introduction
 The HVL Robotics Chess Robot is a student-developed project aimed at providing hands-on experience to students in automation and informatics. The project integrates various challenging tasks such as:
@@ -10,10 +14,12 @@ The HVL Robotics Chess Robot is a student-developed project aimed at providing h
 - Providing a user-friendly way to adjust settings from within the application
 - Offering a graphical user interface (GUI) for calibration, difficulty and color selection, move confirmations, historical move review, and more
 
-This robot has been showcased at HVL Robotics events to visitors, demonstrating the possibilities of combining robotics, dsoftware development, and AI-driven gameplay.
+This robot has been showcased at HVL Robotics events to visitors, demonstrating the possibilities of combining robotics, software development, and AI-driven gameplay.
 
 ## Diagrams and charts
-Flowchart displaying the userflow of the application
+### Flowchart
+The flowchart illustrates the user flow within the application, beginning at the home screen. It shows the steps a user can take, such as configuring the robot, setting up a game, and playing through different phases. Each stage of the game is represented, including move confirmation, turn logic, and game state transitions, culminating in a win, draw, or loss. This helps users and developers understand the application's sequential logic and user interactions.
+
 ```mermaid
 flowchart TD
     run_app[Start Application] --> home_screen["Home Screen"]
@@ -40,7 +46,17 @@ flowchart TD
     end_game -->|Return to home screen| home_screen
 ```
 ### Domain diagram
-This is a domaindoagram giving an overview of the components within the program. 
+The domain diagram provides an overview of the application's components and their relationships. It separates the system into three main parts:
+
+1. Tkinter GUI: Includes screens like home, calibration, selection, and gameplay.
+
+2. Backend: Contains the logic for robot control, chess operations, and configuration management.
+
+3. app.py: Serves as the central controller, this is the file that is run calling creating an instanse of the gui
+
+This diagram emphasizes modularity and how the application integrates diverse components into a cohesive workflow.
+
+
 ```mermaid
 flowchart TD
     subgraph Tkinter_GUI["Tkinter GUI"]
@@ -97,7 +113,7 @@ flowchart TD
 
 
 ### UML diagram
-This is a more detailed diagram of the backend going into detail about the differen classesw within the program
+This is a more detailed diagram of the backend going into detail about the differen classes within the program
 ```mermaid
 classDiagram
     class UR5Robot {
