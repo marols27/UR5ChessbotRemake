@@ -3,10 +3,8 @@ import chess
 import chess.engine
 import chess.pgn
 from DGTBoard import DGTBoard
-from flask_socketio import SocketIO
 from ToolCenterPoint import ToolCenterPoint as TCP
 from UR5Robot import UR5Robot
-import json
 from playsound import playsound
 
 class Game:
@@ -134,6 +132,8 @@ class Game:
                     self.turn = self.board.turn
                     if self.board.checkMate:
                         messageCallback("You won","Checkmate! Congratulations, you have defeated the chessrobot!")
+                    elif self.board.isInsuffichentMaterials:
+                        messageCallback("It's a draw","Insuffichent materials! The game is a draw!")
                     elif self.board.staleMate:
                         messageCallback("It's a draw","Stalemate! The game is a draw!")
                     self.playRobotMove()
