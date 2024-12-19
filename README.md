@@ -1,6 +1,5 @@
 # UR5ChessbotRemake
 
-    
 ## Introduction
 The HVL Robotics Chess Robot is a student-developed project aimed at providing hands-on experience to students in automation and informatics. The project integrates various challenging tasks such as:
 
@@ -12,8 +11,34 @@ The HVL Robotics Chess Robot is a student-developed project aimed at providing h
 - Offering a graphical user interface (GUI) for calibration, difficulty and color selection, move confirmations, historical move review, and more
 
 This robot has been showcased at HVL Robotics events to visitors, demonstrating the possibilities of combining robotics, dsoftware development, and AI-driven gameplay.
-## Current Architecture diagrams
 
+## Diagrams and charts
+Flowchart displaying the userflow of the application
+```mermaid
+flowchart TD
+    run_app[Start Application] --> home_screen["Home Screen"]
+    home_screen -->|Select Pose Configure| pose_configure["Pose Configure"]
+    pose_configure -->|Calibrate Robot| calibration["Calibration Complete"]
+    calibration -->|Press Start Game| home_screen["Home Screen"]
+    home_screen --> choose_difficulty["Choose Difficulty"]
+    choose_difficulty --> choose_color["Choose color"]
+    choose_difficulty --> start["Start"]
+    
+    start -->|Player is playing white| confirm_move["Press Confirm Move"]
+    start -->|Player is playing black| robot_move[Robot Move]
+    confirm_move -->|Check Game State| game_state{"Game State"}
+    robot_move --> |Check Game State| game_state
+    game_state --> |Players turn| confirm_move
+    game_state --> |Robots turn| robot_move
+
+    
+    game_state -->|Win| end_game["Game Over: Win"]
+    game_state -->|Draw| end_game["Game Over: Draw"]
+    game_state -->|Loss| end_game["Game Over: Loss"]
+    game_state -->|Resign| end_game["Game over"]
+    
+    end_game -->|Return to home screen| home_screen
+```
 ### Domain diagram
 This is a domaindoagram giving an overview of the components within the program. 
 ```mermaid
