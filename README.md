@@ -19,10 +19,10 @@ flowchart TD
     run_app[Start Application] --> home_screen["Home Screen"]
     home_screen -->|Select Pose Configure| pose_configure["Pose Configure"]
     pose_configure -->|Calibrate Robot| calibration["Calibration Complete"]
-    calibration -->|Press Start Game| home_screen["Home Screen"]
-    home_screen --> choose_difficulty["Choose Difficulty"]
+    calibration -->|Press done| home_screen["Home Screen"]
+    home_screen --> |Press Play game|choose_difficulty["Choose Difficulty"]
     choose_difficulty --> choose_color["Choose color"]
-    choose_color --> start["Start"]
+    choose_color -->|Press start| start["Start"]
     
     start -->|Player is playing white| confirm_move["Press Confirm Move"]
     start -->|Player is playing black| robot_move[Robot Move]
