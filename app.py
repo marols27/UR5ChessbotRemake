@@ -1,5 +1,7 @@
 import tkinter as tk
-from home_screen import show_home_screen
+from navigation import navigate_to_home
+import os
+import sys
 
 class app():
 
@@ -7,7 +9,7 @@ class app():
         self.root = tk.Tk()
         self.root.title('hvlChessRobot')
         self.root.geometry('800x600')
-        show_home_screen(self.root)
+        navigate_to_home(self.root)
         self.root.mainloop()
 
 if __name__ == '__main__':
