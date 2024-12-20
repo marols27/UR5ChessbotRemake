@@ -231,7 +231,7 @@ classDiagram
 
 ## Changing settings
 At the moment only configuration of the robot is possible to change from the GUI, the rest has to be manually changed in the Settings.py file.
-Remember evaluate the safety of changes related to the robot, to high speeds could create danger for users, rule of thumb is to keep the robot muving under 250mm a second
+Remember evaluate the safety of changes related to the robot, to high speeds could create danger for users, rule of thumb is to keep the robot moving under 250mm a second
 
 ## Installing Requirements
 1. **Python Virtual Environment (Recommended)**  
