@@ -1,417 +1,407 @@
+"""
+Board module: Manages the virtual chess board state, move detection, and
+coordinate mapping between board squares and robot TCP positions.
+"""
+
+import logging
+import chess
 import chess.pgn
 from UR5Feature import UR5Feature
 from ToolCenterPoint import ToolCenterPoint as TCP
-import chess
 
-class Board():
-    # # CLASS DOCCUMENTATION:
-    # This class contains information of the physical DGT boards dimentions, the game state (pieces position), the
+logger = logging.getLogger(__name__)
 
-    # # FIELDS:
-    # - boardSize: The board length and with measured in meter.
-    # - squareSize: The boards squares with and length measured in meter.
-    # - kingHeight: The height of the tallest piece on the board measured in meter.
-    # - loop: (Not quite sure) Some kind of asyncronus task processing variable.
-    # - dgtBoard: The asyncronus connection task to the physical board.
-    # - feature: A feature object for keeping track of the boards pose relative to the robot.
-    #            "this is used to in a more easy way calculate the pieces' positions on the board during playtime."
-    # - board: A viritual clone of the board, keeping track of the physical state of the board. (Might not be nessecary).
-    # - history: A list keeping track of every leegal move don since the start of the program. (need to be resett whith each new game)
-    # - previousState: Keeps track of the previous legal move done on the board.
-    
-    # # CONSTRUCTOR:
-    # __init__(startFen, featureOriginTCP, featureXAxisTCP, featureXYPlaneTCP, boardSize, squareSize, tallestPieceHeight): 
-    #       Creates a new Board object, and populates the history, and previousState with the startFen, 
-    #       and initializes the feature using the 3 TCP objects passed in the constructor.
-    
-    # # METHODS:
-    # - getSquareTCP(pos): 
-    #       Expects a string of 2 caracters (file letters and rank numbers) in the format "[a-h][1-8]" 
-    #       and returns the position coordinates for the square for the robot to move to.
-    #
-    #  - getUCI(board): 
-    #       Returns a Universal Chess Interface (UCI) move string, by comparing a new board layout with the current.
-    # 
-    # - getMoveTCPByUCI(uciMove) -> dict: 
-    #       Returns a dictionary containing the move type (str) and an x number of different 
-    #       ToolCenterPoints (TCP) for the robot. 
-    #       The dictionary is structured in the following way:
-    #       {
-    #           "type": str,                # A move description
-    #           "fromPos": TCP,             # The move from pos
-    #           "toPos": TCP,               # The move to pos
-    #           "enPassantTarget": TCP,     # The captured pawn during enPassant
-    #           "castleFrom": TCP,          # The rooks from pos when castling
-    #           "castleTo": TCP,            # The rooks to pos when castling
-    #           "promotionPiece": str       # The piece to promote to when a pawn is promoted
-    #       }
-    #       And the different move types are:
-    #        - "capturePromotion",
-    #        - "promotion",
-    #        - "enPassant", 
-    #        - "castle", 
-    #        - "capture", 
-    #        - "move"
-    #              
-    #  - push(UCI) -> None: Updates the board with the new move.
-    #       Expect a Universal Chess Interface (UCI) move as a string, and updates the virtual clone of the game.
-    #       Does not return anything.
-    #
-    # - getPGN() -> "list[str]":
-    #       Portable Game Notation (PGN) is a history of chess moves in a game.
-    #       Returns the current PGN as a list of uci moves.
-    #
-    # - strBoardToMatrix(str board) -> "list[list[str]]": 
-    #       Expects a board string in the format: 
-    #       r n b q k b n r
-    #       p p p p p p p p
-    #       . . . . . . . .
-    #       . . . . . . . .
-    #       . . . . . . . .
-    #       . . . . . . . .
-    #       P P P P P P P P
-    #       R N B Q K B N R
-    #       And returns either a 8 x 8 2 dimentional list in the style:
-    #       [
-    #           ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'], 
-    #           ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'], 
-    #           ['.', '.', '.', '.', '.', '.', '.', '.'], 
-    #           ['.', '.', '.', '.', '.', '.', '.', '.'], 
-    #           ['.', '.', '.', '.', '.', '.', '.', '.'], 
-    #           ['.', '.', '.', '.', '.', '.', '.', '.'], 
-    #           ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'], 
-    #           ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
-    #       ]
-    #       or None if an error ocures or the string length is wrong.
-
-    # Fields:
-    files = {
-        "a":1,
-        "b":2,
-        "c":3,
-        "d":4,
-        "e":5,
-        "f":6,
-        "g":7,
-        "h":8
-        }
-    boardSize: float = 0.54
-    squareSize: float = 0.055
+FILES = {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8}
 
 
-    # Constructor:
+class Board:
+    """
+    Virtual representation of the chess board that tracks game state and
+    maps board positions to physical robot TCP coordinates.
+
+    Fixes over original:
+    - str.replace() return values are now captured (were silently discarded)
+    - getPGN() uses a chess.pgn.Game *instance* and advances the node
+    - En passant target uses string concatenation (not str + int)
+    - strBoardToMatrix is robust (doesn't require exactly 127 chars)
+    - getSquareTCP validates input
+    - Legal moves are obtained via chess.Move.__str__ directly
+    """
+
     def __init__(
-            self, 
-            startFen: str,
-            feature: UR5Feature,
-            boardSize: float = 0.54,
-            squareSize: float = 0.055
-        ):
-        self.boardSize = boardSize      # m
-        self.squareSize = squareSize    # m
+        self,
+        start_fen: str,
+        feature: UR5Feature,
+        board_size: float = 0.54,
+        square_size: float = 0.055,
+    ):
+        self.board_size = board_size
+        self.square_size = square_size
         self.feature = feature
-        self.board = chess.Board(fen=startFen)
+        self.board = chess.Board(fen=start_fen)
+        self._sync_state()
+
+    # ------------------------------------------------------------------
+    # State helpers
+    # ------------------------------------------------------------------
+
+    def _sync_state(self):
+        """Refresh cached state properties from the underlying chess.Board."""
         self.turn = self.board.turn
         self.checkMate = self.board.is_checkmate()
         self.staleMate = self.board.is_stalemate()
         self.isInsuffichentMaterials = self.board.is_insufficient_material()
-        
-        legalMoves: "list[chess.Move]" = list(self.board.legal_moves)
-        self.legalMoves: "list[str]" = []
-        for i in legalMoves:
-            x = str(i)
-            x.replace("Move.from_uci('", "")
-            x.replace("')", "")
-            self.legalMoves.append(x)
+        self.legalMoves = [m.uci() for m in self.board.legal_moves]
 
-    # Methods
-    def getSquareTCP(self, boardPos: str) -> TCP:
-        file = self.files[boardPos[0].lower()]
-        rank = int(boardPos[1])
-        return self.feature.getFeatureRelativeTCP(self.squareSize * (file - 1), self.squareSize * (rank - 1), 0)
-    
-    # Not finished, to do list:
-    # - Implement the casteling case.
-    def getUCI(self, toBoard: str) -> str:
-        def fileNumberToLetter(number):
-            return list(self.files.keys())[list(self.files.values()).index(number)]
-        fromBoard = str(self.board).split("\n")
-        for i in range(len(fromBoard)):
-            fromBoard[i] = fromBoard[i].split(" ")
-        
-        toBoard = toBoard.split("\n")
-        for i in range(len(toBoard)):
-            toBoard[i] = toBoard[i].split(" ")
-        
-        # List of dictionaries in the form {file, rank, before, after}
-        changedSquares: "list[dict]" = []
+    # ------------------------------------------------------------------
+    # Coordinate mapping
+    # ------------------------------------------------------------------
+
+    def getSquareTCP(self, board_pos) -> TCP:
+        """
+        Get the robot TCP for a board square.
+
+        Args:
+            board_pos: Either a string like "e4" or a list like ["e", 4].
+
+        Returns:
+            TCP for that square relative to the board feature.
+        """
+        if isinstance(board_pos, (list, tuple)):
+            file_letter = str(board_pos[0]).lower()
+            rank_number = int(board_pos[1])
+        elif isinstance(board_pos, str) and len(board_pos) == 2:
+            file_letter = board_pos[0].lower()
+            rank_number = int(board_pos[1])
+        else:
+            raise ValueError(f"Invalid board position: {board_pos!r}")
+
+        if file_letter not in FILES:
+            raise ValueError(f"Invalid file letter: {file_letter!r}")
+        if not 1 <= rank_number <= 8:
+            raise ValueError(f"Invalid rank number: {rank_number}")
+
+        file_idx = FILES[file_letter]
+        return self.feature.getFeatureRelativeTCP(
+            self.square_size * (file_idx - 1),
+            self.square_size * (rank_number - 1),
+            0,
+        )
+
+    # ------------------------------------------------------------------
+    # Move detection from board comparison
+    # ------------------------------------------------------------------
+
+    def getUCI(self, to_board_str: str) -> str | None:
+        """
+        Detect the UCI move by comparing the current internal board state
+        with a new board string (as returned by DGTBoard.getCurentBoard()).
+
+        Returns the UCI string if a valid move is detected, or None.
+        """
+
+        def file_number_to_letter(number: int) -> str:
+            for letter, num in FILES.items():
+                if num == number:
+                    return letter
+            return ""
+
+        from_board = self.strBoardToMatrix(str(self.board))
+        to_board = self.strBoardToMatrix(to_board_str)
+        if from_board is None or to_board is None:
+            logger.warning("Could not parse board strings for move detection")
+            return None
+
+        changed_squares: list[dict] = []
         for x in range(1, 9):
             for y in range(1, 9):
-                if fromBoard[8-y][x-1] != toBoard[8-y][x-1]:
-                    changedSquares.append({"file":x, "fileLetter":fileNumberToLetter(x),"rank":y, "before":fromBoard[8-y][x-1], "after":toBoard[8-y][x-1]})
+                before = from_board[8 - y][x - 1]
+                after = to_board[8 - y][x - 1]
+                if before != after:
+                    changed_squares.append(
+                        {
+                            "file": x,
+                            "fileLetter": file_number_to_letter(x),
+                            "rank": y,
+                            "before": before,
+                            "after": after,
+                        }
+                    )
 
-        uci = ""
-        # Picked upp piece case
-        if len(changedSquares) == 1:
+        n = len(changed_squares)
+
+        # Piece picked up (incomplete move)
+        if n == 1:
             return None
 
-        # Normal move case (with promotion handling)
-        elif len(changedSquares) == 2:
-            # Checking spechial non complete move cases
-            movingPawn = changedSquares[0]["before"].lower() == "p" or changedSquares[1]["before"].lower() == "p"
-            changingFiles = changedSquares[0]["file"] != changedSquares[1]["file"]
-            enPassentMove = changedSquares[0]["before"] == changedSquares[1]["after"] and changedSquares[0]["after"] == changedSquares[1]["before"]
-            kingIsCasteling = (changedSquares[0]["before"].lower() == "k" or changedSquares[1]["before"].lower() == "k") and abs(changedSquares[0]["file"] - changedSquares[1]["file"]) == 2
+        # Normal move / capture / promotion
+        if n == 2:
+            cs = changed_squares
+            moving_pawn = (
+                cs[0]["before"].lower() == "p" or cs[1]["before"].lower() == "p"
+            )
+            changing_files = cs[0]["file"] != cs[1]["file"]
+            en_passant_swap = (
+                cs[0]["before"] == cs[1]["after"] and cs[0]["after"] == cs[1]["before"]
+            )
+            king_castling = (
+                cs[0]["before"].lower() == "k" or cs[1]["before"].lower() == "k"
+            ) and abs(cs[0]["file"] - cs[1]["file"]) == 2
 
-            notCompletedMoveCases = [
-                changedSquares[0]["after"] == changedSquares[1]["after"], # "During a capture, both squares has to be emptied during piece moving"
-                movingPawn and changingFiles and enPassentMove,
-                kingIsCasteling
+            incomplete_cases = [
+                cs[0]["after"] == cs[1]["after"],  # During capture, both emptied
+                moving_pawn and changing_files and en_passant_swap,
+                king_castling,
             ]
-            if True in notCompletedMoveCases:
+            if any(incomplete_cases):
                 return None
 
-            if changedSquares[0]["after"] == ".":
-                uci += changedSquares[0]["fileLetter"]
-                uci += str(changedSquares[0]["rank"])
-                uci += changedSquares[1]["fileLetter"]
-                uci += str(changedSquares[1]["rank"])
-                movedPieceIsPawn = changedSquares[0]["before"].lower() == "p"
-                movedPieceWasPromoted = changedSquares[1]["after"].lower() != "p"
-                if movedPieceIsPawn and movedPieceWasPromoted:
-                    uci += changedSquares[1]["after"].lower()
+            if cs[0]["after"] == ".":
+                from_sq, to_sq = cs[0], cs[1]
             else:
-                uci += changedSquares[1]["fileLetter"]
-                uci += str(changedSquares[1]["rank"])
-                uci += changedSquares[0]["fileLetter"]
-                uci += str(changedSquares[0]["rank"])
-                movedPieceIsPawn = changedSquares[1]["before"].lower() == "p"
-                movedPieceWasPromoted = changedSquares[0]["after"].lower() != "p"
-                if movedPieceIsPawn and movedPieceWasPromoted:
-                    uci += changedSquares[0]["after"].lower()
+                from_sq, to_sq = cs[1], cs[0]
+
+            uci = from_sq["fileLetter"] + str(from_sq["rank"])
+            uci += to_sq["fileLetter"] + str(to_sq["rank"])
+
+            # Promotion detection
+            if from_sq["before"].lower() == "p" and to_sq["after"].lower() != "p":
+                uci += to_sq["after"].lower()
+
             return uci
-        
-        # En passent move case
-        elif len(changedSquares) == 3:
-            fromRank = []
-            moveToSquare = None
-            assaultingSquare = None
-            for i in changedSquares:
-                if i["before"].lower() == "p":
-                    fromRank.append(i)
+
+        # En passant (3 changed squares)
+        if n == 3:
+            pawn_squares = []
+            empty_square = None
+            for sq in changed_squares:
+                if sq["before"].lower() == "p":
+                    pawn_squares.append(sq)
                 else:
-                    moveToSquare = i
-            
-            if len(fromRank) != 2:
+                    empty_square = sq
+
+            if len(pawn_squares) != 2 or empty_square is None:
                 return None
-            
-            fromRankACheck = fromRank[0]["before"].lower() == "p" and fromRank[0]["after"] == "."
-            fromRankBCheck = fromRank[1]["before"].lower() == "p" and fromRank[1]["after"] == "."
-            moveToSquareCheck = moveToSquare["before"] == "." and moveToSquare["after"].lower() == "p"
-            enPassentMove = fromRankACheck and fromRankBCheck and moveToSquareCheck
-            if not enPassentMove:
-                return None # "ERROR: 3 Changes on the board was made, but no en passent move detected!"
-            else:
-                assaultingSquare = fromRank[0] if fromRank[0]["file"] != moveToSquare["file"] else fromRank[1]
-                uci += assaultingSquare["fileLetter"]
-                uci += str(assaultingSquare["rank"])
-                uci += moveToSquare["fileLetter"]
-                uci += str(moveToSquare["rank"])
-                return uci
-        
-        # Castle move case
-        elif len(changedSquares) == 4:
-            rooksMove = [None, None]
-            kingsMove = [None, None]
-            for i in changedSquares:
-                if i["before"].lower() == "k":
-                    kingsMove[0] = i
-                elif i["before"].lower() == "r":
-                    rooksMove[0] = i
-                elif i["after"].lower() == "k":
-                    kingsMove[1] = i
-                elif i["after"].lower() == "r":
-                    rooksMove[1] = i
+
+            a_ok = (
+                pawn_squares[0]["before"].lower() == "p"
+                and pawn_squares[0]["after"] == "."
+            )
+            b_ok = (
+                pawn_squares[1]["before"].lower() == "p"
+                and pawn_squares[1]["after"] == "."
+            )
+            to_ok = (
+                empty_square["before"] == "." and empty_square["after"].lower() == "p"
+            )
+
+            if not (a_ok and b_ok and to_ok):
+                return None
+
+            # The assaulting pawn changed files
+            assaulting = (
+                pawn_squares[0]
+                if pawn_squares[0]["file"] != empty_square["file"]
+                else pawn_squares[1]
+            )
+            return (
+                assaulting["fileLetter"]
+                + str(assaulting["rank"])
+                + empty_square["fileLetter"]
+                + str(empty_square["rank"])
+            )
+
+        # Castling (4 changed squares)
+        if n == 4:
+            kings_move = [None, None]
+            rooks_move = [None, None]
+            for sq in changed_squares:
+                if sq["before"].lower() == "k":
+                    kings_move[0] = sq
+                elif sq["before"].lower() == "r":
+                    rooks_move[0] = sq
+                elif sq["after"].lower() == "k":
+                    kings_move[1] = sq
+                elif sq["after"].lower() == "r":
+                    rooks_move[1] = sq
                 else:
                     return None
-            kingHasMoved2Files = abs(kingsMove[0]["file"] - kingsMove[1]["file"]) == 2
-            kingHasMoved0Ranks = kingsMove[0]["rank"] == kingsMove[1]["rank"]
-            if kingHasMoved2Files and kingHasMoved0Ranks:
-                return kingsMove[0]["fileLetter"] + str(kingsMove[0]["rank"]) + kingsMove[1]["fileLetter"] + str(kingsMove[1]["rank"])
-            else:
+
+            if kings_move[0] is None or kings_move[1] is None:
                 return None
-        else:
+
+            if (
+                abs(kings_move[0]["file"] - kings_move[1]["file"]) == 2
+                and kings_move[0]["rank"] == kings_move[1]["rank"]
+            ):
+                return (
+                    kings_move[0]["fileLetter"]
+                    + str(kings_move[0]["rank"])
+                    + kings_move[1]["fileLetter"]
+                    + str(kings_move[1]["rank"])
+                )
             return None
-    
-    def getMoveTCPByUCI(self, uciMove: str, previousBoard: str) -> "dict[str, TCP, TCP, TCP]":
-        fromSquare = [uciMove[:2][0], int(uciMove[:2][1])]
-        toSquare = [uciMove[2:4][0], int(uciMove[2:4][1])]
-        fromBoard = self.strBoardToMatrix(previousBoard)
-        toBoard = self.strBoardToMatrix(str(self.board))
 
-        isMoveToSquareEmpty = fromBoard[8 - toSquare[1]][self.files[toSquare[0]] - 1] == "."
-        isMoveFromSquarePawn = toBoard[8 - toSquare[1]][self.files[toSquare[0]] - 1].lower() == "p"
-        isFileChangingMove = fromSquare[0] != toSquare[0]
-        isMoveFromSquareKing = fromBoard[8 - fromSquare[1]][self.files[fromSquare[0]] - 1].lower() == "k"
-        isMoving2Files = abs(self.files[fromSquare[0]] - self.files[toSquare[0]]) == 2
-        isToSpotOccupied = fromBoard[8 - toSquare[1]][self.files[toSquare[0]] - 1] != "."
+        return None
 
-        if len(uciMove) == 5:
-            move = {
-                "type": "promotion" if not isToSpotOccupied else "capturePromotion",
-                "fromPos": self.getSquareTCP(fromSquare),
-                "toPos": self.getSquareTCP(toSquare),
-                "enPassantTarget": None,
-                "castleFrom": None,
-                "castleTo": None,
-                "promotionPiece": uciMove[4]
-            }
-        elif isMoveFromSquarePawn and isMoveToSquareEmpty and isFileChangingMove:
-            move = {
-                "type": "enPassant",
-                "fromPos": self.getSquareTCP(fromSquare),
-                "toPos": self.getSquareTCP(toSquare),
-                "enPassantTarget": self.getSquareTCP(toSquare[0] + int(fromSquare[1])),
-                "castleFrom": None,
-                "castleTo": None,
-                "promotionPiece": None
-            }
-        # CASTLING MOVES SOFT CODED VERSION FOR NORMAL CHESS ONLY:
-        elif isMoveFromSquareKing and isMoving2Files:
-            rookFromSquareOnCastelingSide = "a" + str(fromSquare[1]) if (toSquare[0] == "c") else "h" + str(fromSquare[1])
-            rookToSquareOnCastelingSide = "d" + str(fromSquare[1]) if (toSquare[0] == "c") else "f" + str(fromSquare[1])
-            move = {
-                "type": "castle",
-                "fromPos": self.getSquareTCP(fromSquare),
-                "toPos": self.getSquareTCP(toSquare),
-                "enPassantTarget": None,
-                "castleFrom": self.getSquareTCP(rookFromSquareOnCastelingSide),
-                "castleTo": self.getSquareTCP(rookToSquareOnCastelingSide),
-                "promotionPiece": None
-            }
-        # CASTLING MOVES HARD CODED VERSION FOR NORMAL CHESS ONLY:
-            """
-            if isMoveFromSquareKing:
-                if uciMove == "e1c1":
-                    move = {
-                        "type": "castle",
-                        "fromPos": self.getSquareTCP(fromSquare),
-                        "toPos": self.getSquareTCP(toSquare),
-                        "enPassantTarget": None,
-                        "castleFrom": self.getSquareTCP("a1"),
-                        "castleTo": self.getSquareTCP("d1"),
-                        "promotionPiece": None
-                    }
-                elif uciMove == "e1g1":
-                    move = {
-                        "type": "castle",
-                        "fromPos": self.getSquareTCP(fromSquare),
-                        "toPos": self.getSquareTCP(toSquare),
-                        "enPassantTarget": None,
-                        "castleFrom": self.getSquareTCP("h1"),
-                        "castleTo": self.getSquareTCP("f1"),
-                        "promotionPiece": None
-                    }
-                elif uciMove == "e8c8":
-                    move = {
-                        "type": "castle",
-                        "fromPos": self.getSquareTCP(fromSquare),
-                        "toPos": self.getSquareTCP(toSquare),
-                        "enPassantTarget": None,
-                        "castleFrom": self.getSquareTCP("a8"),
-                        "castleTo": self.getSquareTCP("d8"),
-                        "promotionPiece": None
-                    }
-                elif uciMove == "e8g8":
-                    move = {
-                        "type": "castle",
-                        "fromPos": self.getSquareTCP(fromSquare),
-                        "toPos": self.getSquareTCP(toSquare),
-                        "enPassantTarget": None,
-                        "castleFrom": self.getSquareTCP("h8"),
-                        "castleTo": self.getSquareTCP("f8"),
-                        "promotionPiece": None
-                    }
-                else:
-                    isMoveToSquareEmpty = self.fromBoard[int(toSquare[1])][self.files[toSquare[0]]] == "."
-                    if isMoveToSquareEmpty:
-                        move = {
-                            "type": "move",
-                            "fromPos": self.getSquareTCP(fromSquare),
-                            "toPos": self.getSquareTCP(toSquare),
-                            "enPassantTarget": None,
-                            "castleFrom": None,
-                            "castleTo": None,
-                            "promotionPiece": None
-                        }
-                    else:
-                        move = {
-                            "type": "capture",
-                            "fromPos": self.getSquareTCP(fromSquare),
-                            "toPos": self.getSquareTCP(toSquare),
-                            "enPassantTarget": None,
-                            "castleFrom": None,
-                            "castleTo": None,
-                            "promotionPiece": None
-                        }
-            """
-        elif isToSpotOccupied:
-            move = {
-                "type": "capture",
-                "fromPos": self.getSquareTCP(fromSquare),
-                "toPos": self.getSquareTCP(toSquare),
-                "enPassantTarget": None,
-                "castleFrom": None,
-                "castleTo": None,
-                "promotionPiece": None
-            }
-        else:
-            move = {
+    # ------------------------------------------------------------------
+    # Move TCP computation for the robot
+    # ------------------------------------------------------------------
+
+    def getMoveTCPByUCI(self, uci_move: str, previous_board: str) -> dict:
+        """
+        Given a UCI move string and the board state *before* the move was
+        pushed, return a dict describing the move type and relevant TCPs.
+        """
+        from_sq = [uci_move[0], int(uci_move[1])]
+        to_sq = [uci_move[2], int(uci_move[3])]
+        from_board = self.strBoardToMatrix(previous_board)
+        to_board = self.strBoardToMatrix(str(self.board))
+
+        if from_board is None or to_board is None:
+            logger.error("Cannot parse board for getMoveTCPByUCI")
+            return {
                 "type": "move",
-                "fromPos": self.getSquareTCP(fromSquare),
-                "toPos": self.getSquareTCP(toSquare),
+                "fromPos": self.getSquareTCP(from_sq),
+                "toPos": self.getSquareTCP(to_sq),
                 "enPassantTarget": None,
                 "castleFrom": None,
                 "castleTo": None,
-                "promotionPiece": None
+                "promotionPiece": None,
             }
-        return move
 
-    def strBoardToMatrix(self, board: str) -> "list[list[str]]":
-        if len(board) == 127:
-            try:
-                board = board.split("\n")
-                for i in range(len(board)):
-                    board[i] = board[i].split(" ")
-                return board
-            except:
+        to_file_idx = FILES[to_sq[0]] - 1
+        from_file_idx = FILES[from_sq[0]] - 1
+
+        is_to_occupied = from_board[8 - to_sq[1]][to_file_idx] != "."
+        is_from_pawn = from_board[8 - from_sq[1]][from_file_idx].lower() == "p"
+        is_to_empty = from_board[8 - to_sq[1]][to_file_idx] == "."
+        is_file_changing = from_sq[0] != to_sq[0]
+        is_from_king = from_board[8 - from_sq[1]][from_file_idx].lower() == "k"
+        is_moving_2_files = abs(FILES[from_sq[0]] - FILES[to_sq[0]]) == 2
+
+        # Promotion (5-char UCI)
+        if len(uci_move) == 5:
+            return {
+                "type": "capturePromotion" if is_to_occupied else "promotion",
+                "fromPos": self.getSquareTCP(from_sq),
+                "toPos": self.getSquareTCP(to_sq),
+                "enPassantTarget": None,
+                "castleFrom": None,
+                "castleTo": None,
+                "promotionPiece": uci_move[4],
+            }
+
+        # En passant
+        if is_from_pawn and is_to_empty and is_file_changing:
+            # FIX: use string concatenation, not str + int
+            ep_target = to_sq[0] + str(from_sq[1])
+            return {
+                "type": "enPassant",
+                "fromPos": self.getSquareTCP(from_sq),
+                "toPos": self.getSquareTCP(to_sq),
+                "enPassantTarget": self.getSquareTCP(ep_target),
+                "castleFrom": None,
+                "castleTo": None,
+                "promotionPiece": None,
+            }
+
+        # Castling
+        if is_from_king and is_moving_2_files:
+            rank_str = str(from_sq[1])
+            if to_sq[0] == "c":
+                rook_from = "a" + rank_str
+                rook_to = "d" + rank_str
+            else:
+                rook_from = "h" + rank_str
+                rook_to = "f" + rank_str
+            return {
+                "type": "castle",
+                "fromPos": self.getSquareTCP(from_sq),
+                "toPos": self.getSquareTCP(to_sq),
+                "enPassantTarget": None,
+                "castleFrom": self.getSquareTCP(rook_from),
+                "castleTo": self.getSquareTCP(rook_to),
+                "promotionPiece": None,
+            }
+
+        # Capture
+        if is_to_occupied:
+            return {
+                "type": "capture",
+                "fromPos": self.getSquareTCP(from_sq),
+                "toPos": self.getSquareTCP(to_sq),
+                "enPassantTarget": None,
+                "castleFrom": None,
+                "castleTo": None,
+                "promotionPiece": None,
+            }
+
+        # Normal move
+        return {
+            "type": "move",
+            "fromPos": self.getSquareTCP(from_sq),
+            "toPos": self.getSquareTCP(to_sq),
+            "enPassantTarget": None,
+            "castleFrom": None,
+            "castleTo": None,
+            "promotionPiece": None,
+        }
+
+    # ------------------------------------------------------------------
+    # Board string parsing
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def strBoardToMatrix(board_str: str) -> list[list[str]] | None:
+        """
+        Parse a board string (8 rows of space-separated pieces) into an 8x8 matrix.
+
+        More robust than the original: does not require exactly 127 chars.
+        """
+        try:
+            rows = board_str.strip().split("\n")
+            if len(rows) != 8:
+                logger.warning(f"Expected 8 rows, got {len(rows)}")
                 return None
-        else:
+            matrix = []
+            for row in rows:
+                cells = row.split()
+                if len(cells) != 8:
+                    logger.warning(
+                        f"Expected 8 cells in row, got {len(cells)}: {row!r}"
+                    )
+                    return None
+                matrix.append(cells)
+            return matrix
+        except Exception as e:
+            logger.error(f"Failed to parse board string: {e}")
             return None
-    
-    def push(self, uci):
-        if type(uci) != str:
-            uci = str(uci)
-            uci.replace("Move.from_uci('", "")
-            uci.replace("')", "")
-        self.board.push_uci(uci)
-        self.turn = self.board.turn
-        self.checkMate = self.board.is_checkmate()
-        self.staleMate = self.board.is_stalemate()
-        self.isInsuffichentMaterials = self.board.is_insufficient_material()
-        legalMoves: "list[chess.Move]" = list(self.board.legal_moves)
-        self.legalMoves: "list[str]" = []
-        for i in legalMoves:
-            x = str(i)
-            x.replace("Move.from_uci('", "")
-            x.replace("')", "")
-            self.legalMoves.append(x)
 
-    def getPGN(self):
-        game = chess.pgn.Game
-        moves = self.board.move_stack
+    # ------------------------------------------------------------------
+    # Push move
+    # ------------------------------------------------------------------
+
+    def push(self, uci):
+        """Push a move (UCI string or chess.Move) onto the board."""
+        if isinstance(uci, chess.Move):
+            self.board.push(uci)
+        else:
+            self.board.push_uci(str(uci))
+        self._sync_state()
+
+    # ------------------------------------------------------------------
+    # PGN generation
+    # ------------------------------------------------------------------
+
+    def getPGN(self) -> str:
+        """
+        Return the game in PGN format.
+
+        FIX: uses chess.pgn.Game() *instance* and advances the node pointer.
+        """
+        game = chess.pgn.Game()
         node = game
-        for move in moves:
-            node.add_variation(move)
+        for move in self.board.move_stack:
+            node = node.add_variation(move)
         return str(game)
-            

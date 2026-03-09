@@ -31,4 +31,17 @@ pip-delete-this-directory.txt
 nosetests.xml
 coverage.xml
 
+# Virtual environments
+venv/
+.venv/
+
+# Linting
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
 # Translations

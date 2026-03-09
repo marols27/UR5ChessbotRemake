@@ -1,0 +1,28 @@
+[project]
+name = "ur5-chessbot"
+version = "0.1.0"
+description = "UR5 robot arm that plays physical chess against a human using a DGT board, Stockfish, and CustomTkinter GUI"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "chess>=1.11",
+    "customtkinter>=5.2",
+    "CTkMessagebox>=2.7",
+    "Pillow>=10.0",
+    "numpy>=2.0",
+]
+
+[project.optional-dependencies]
+# Hardware libraries — install when running on the real robot.
+# asyncdgt is not on PyPI; install it manually from the DGT SDK.
+hardware = [
+    "ur-rtde>=1.5",
+    "pyserial>=3.5",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11",
+    "pytest>=8.0",
+]

@@ -1,78 +1,40 @@
-import rtde_control #import RTDEControlInterface as RTDEControl
-import rtde_receive #import RTDEReceiveInterface as RTDEReceive
-from robotiq_gripper_control import RobotiqGripper
+"""
+UR5Robot: High-level interface for a UR5 robot playing chess.
+
+Provides basic movements (goto, grab, drop) and combined chess movements
+(movePiece, capturePiece, enPassant, castle, promotion).
+
+In simulation mode, all physical movements are logged but not executed.
+
+Fixes over original:
+- No bare except: clauses (catches specific exceptions)
+- Constructor does not disconnect immediately after setup
+- Simulation mode for testing without hardware
+- Proper resource cleanup via close()
+"""
+
 import copy
+import logging
+
 from ToolCenterPoint import ToolCenterPoint as TCP
+from simulation import SIMULATION_MODE
 
+logger = logging.getLogger(__name__)
 
-#import Getuci
-#import SafeVariableClass
 
 class UR5Robot:
-    """
-    ## UR5Robot class for some simpler work with a UR5Robot playing chess.
-    This class is just ment to store the settings of a robot, as well as the different interfaces in a single object.
-    By doing this we get to create robotic moves by deffining the basic movements Goto, Grab, and Dropp,
-    and then combinding theese basic movements to create movements of our chess needs.
+    """UR5 robot controller for chess piece manipulation."""
 
-    #### Fields:
-        - travelHeight: The height the robot needs to move to avoid piece collition while moving pieces.
-        - homePose:     A predeffined position for the robot to go to and stop in while not doing anything.
-        - connectionIP: The UR5Robots IP adress, for conection of the different interfaces.
-        - acceleration: The UR5Robots movement acceleration.
-        - speed:        The UR5Robots movement speed.
-        - gripperSpeed: The UR5Robots gripper speed.
-        - gripperForce: The UR5Robots gripper force.
-
-        - control:  Interface for driving the robot.
-        - info:     Interface for getting current information about the robot.
-        - gripper:  Interface for driving the robots gripper.
-    
-    #### Constructor:
-        - __init__(
-            self,
-            travelHeight: float,
-            conectionIP: str,
-            gripperForce: float,
-            gripperSpeed: float,
-            speed: float,
-            acceleration: float
-        )
-    
-    #### Methodes:
-        - `getPos(self):` Lets you move the robot arm to a desiered location, and returns the pose of that location when confirmed.
-        - freeDrive(self): Lets you move the robot freely until you confirm the position. (To move the robot away).
-    ##### Basic movement:
-        - goto(self, pos: "list[float]"): Moves the robot to the specified position.
-        - grab(self): Makes the robot gripper close.
-        - drop(self): Makes the robot gripper open.
-    ##### Combined movement:
-        - home(self): Moves the robot to the predeffined home pose.
-        - movePiece(self, fromPos: "list[float]", toPos: "list[float]", home = True): Moves a chess piece form a specified location to another specified location, and returns the robot to the home stance if home = True.
-        - capturePiece(self, fromPos: "list[float]", toPos: "list[float]", capturePos: "list[float]"): Captures a piece to the capture pos, and move the piece from and to the specified positions.
-        - enPassent(self, fromPos: "list[float]", toPos: "list[float]", targetPos: "list[float]", capturePos: "list[float]"): Performes an en passent move, by from and to poses, a target pose and a capture pose.'
-        - castle(self, fromPosKing: "list[float]", toPosKing: "list[float]", fromPosRook: "list[float]", toPosRook: "list[float]"): Performs a casteling move by two sets of from and to poses.
-        - promotion(self, fromPos: "list[float]", capturePos: "list[float]"): Captures a pawn for promotion, and requests the user to place down the requiered piece.
-        - capturePromotion(self, fromPos: "list[float]", toPos: "list[float]", capturePos: "list[float]"): Captures a pawn and an opponet piece and requests the user to place down the requiered piece.
-    """
-
-    # Fields:
-    travelHeight = None
-    homePose = None
-    connectionIP = None
-    acceleration = None
-    speed = None
-    gripperSpeed = None
-    gripperForce = None
-
-    # Interfaces:
-    control = None
-    info = None
-    gripper = None
-
-
-    # Constructor:
-    def __init__(self, travelHeight: float, homePose: TCP, connectionIP: str, acceleration: float, speed: float, gripperSpeed: float, gripperForce: float):
+    def __init__(
+        self,
+        travelHeight: float,
+        homePose: TCP,
+        connectionIP: str,
+        acceleration: float,
+        speed: float,
+        gripperSpeed: float,
+        gripperForce: float,
+    ):
         self.travelHeight = travelHeight
         self.homePose = homePose
         self.connectionIP = connectionIP
@@ -80,122 +42,177 @@ class UR5Robot:
         self.speed = speed
         self.gripperSpeed = gripperSpeed
         self.gripperForce = gripperForce
+        self.simulation = SIMULATION_MODE
 
-        # Connection and setup:
-        self.control = rtde_control.RTDEControlInterface(connectionIP)
-        self.info = rtde_receive.RTDEReceiveInterface(connectionIP)
+        self.control = None
+        self.info = None
+        self.gripper = None
+
+        if not self.simulation:
+            self._connect()
+        else:
+            logger.info("UR5Robot running in SIMULATION mode")
+
+    def _connect(self):
+        """Establish connections to the robot hardware."""
+        import rtde_control
+        import rtde_receive
+        from robotiq_gripper_control import RobotiqGripper
+
+        self.control = rtde_control.RTDEControlInterface(self.connectionIP)
+        self.info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
         self.gripper = RobotiqGripper(self.control)
         self.gripper.activate()
-        self.gripper.set_force(gripperForce)  # from 0 to 100 %
-        self.gripper.set_speed(gripperSpeed)  # from 0 to 100 %
-        self.drop()
-        self.control.disconnect()
+        self.gripper.set_force(self.gripperForce)
+        self.gripper.set_speed(self.gripperSpeed)
+        self.drop()  # Open gripper to start
+        logger.info(f"UR5Robot connected to {self.connectionIP}")
 
-
-    # Methodes:
-    def getPos(self):
-        self.control.teachMode()
-        input("Move the robot to the point and press enter to get the pose...")
-        self.control.endTeachMode()
-        pose = self.info.getActualTCPPose()
-        return pose
-
-    def freeDrive(self):
-        self.control.teachMode()
-        input("Move the robot away to a desiered location and press enter to continiue...")
-        self.control.endTeachMode()
-        
-    def goto(self, pos: "list[float]"):
+    def _reconnect(self):
+        """Reconnect to the robot if the connection was lost."""
+        if self.simulation:
+            return
         try:
-            self.control.moveL(pos, self.speed, self.acceleration)
-        except:
-            if self.control.isConnected():
+            if self.control and self.control.isConnected():
                 self.control.disconnect()
             self.control.reconnect()
-            if self.info.isConnected():
+            if self.info and self.info.isConnected():
                 self.info.disconnect()
             self.info.reconnect()
-            self.control.moveL(pos, self.speed, self.acceleration)
+        except Exception as e:
+            logger.error(f"Failed to reconnect: {e}")
+            raise
 
+    def close(self):
+        """Clean up robot connections."""
+        if self.simulation:
+            return
+        try:
+            if self.control and self.control.isConnected():
+                self.control.disconnect()
+            if self.info and self.info.isConnected():
+                self.info.disconnect()
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # Basic movements
+    # ------------------------------------------------------------------
+
+    def goto(self, pos: "list[float]"):
+        """Move the robot to the specified TCP position."""
+        if self.simulation:
+            logger.debug(f"[SIM] goto({pos[:3]}...)")
+            return
+        try:
+            self.control.moveL(pos, self.speed, self.acceleration)
+        except RuntimeError:
+            logger.warning("moveL failed, attempting reconnect...")
+            self._reconnect()
+            self.control.moveL(pos, self.speed, self.acceleration)
 
     def grab(self):
+        """Close the gripper to grab a piece."""
+        if self.simulation:
+            logger.debug("[SIM] grab()")
+            return
         try:
             self.gripper.move(6)
-        except:
-            if self.control.isConnected():
-                self.control.disconnect()
-            self.control.reconnect()
-            if self.info.isConnected():
-                self.info.disconnect()
-            self.info.reconnect()
+        except RuntimeError:
+            logger.warning("grab failed, attempting reconnect...")
+            self._reconnect()
             self.gripper.activate()
-            self.gripper.set_force(self.gripperForce)  # from 0 to 100 %
-            self.gripper.set_speed(self.gripperSpeed)  # from 0 to 100 %
+            self.gripper.set_force(self.gripperForce)
+            self.gripper.set_speed(self.gripperSpeed)
             self.gripper.move(37)
             self.gripper.move(6)
-
 
     def drop(self):
+        """Open the gripper to drop a piece."""
+        if self.simulation:
+            logger.debug("[SIM] drop()")
+            return
         try:
             self.gripper.move(37)
-        except:
-            if self.control.isConnected():
-                self.control.disconnect()
-            self.control.reconnect()
-            if self.info.isConnected():
-                self.info.disconnect()
-            self.info.reconnect()
+        except RuntimeError:
+            logger.warning("drop failed, attempting reconnect...")
+            self._reconnect()
             self.gripper.activate()
-            self.gripper.set_force(self.gripperForce)  # from 0 to 100 %
-            self.gripper.set_speed(self.gripperSpeed)  # from 0 to 100 %
+            self.gripper.set_force(self.gripperForce)
+            self.gripper.set_speed(self.gripperSpeed)
             self.gripper.move(37)
 
+    # ------------------------------------------------------------------
+    # Combined movements
+    # ------------------------------------------------------------------
+
     def home(self):
+        """Move the robot to the predefined home position."""
         self.goto(self.homePose.TCP)
 
-    def movePiece(self, fromPos: "list[float]", toPos: "list[float]", home = True):
-        aboveFromPos = copy.deepcopy(fromPos)
-        aboveFromPos[2] += self.travelHeight
-        aboveToPos = copy.deepcopy(toPos)
-        aboveToPos[2] += self.travelHeight
-        self.goto(aboveFromPos)
+    def movePiece(
+        self, fromPos: "list[float]", toPos: "list[float]", home: bool = True
+    ):
+        """Move a chess piece from one position to another."""
+        aboveFrom = copy.deepcopy(fromPos)
+        aboveFrom[2] += self.travelHeight
+        aboveTo = copy.deepcopy(toPos)
+        aboveTo[2] += self.travelHeight
+
+        self.goto(aboveFrom)
         self.goto(fromPos)
         self.grab()
-        self.goto(aboveFromPos)
-        self.goto(aboveToPos)
+        self.goto(aboveFrom)
+        self.goto(aboveTo)
         self.goto(toPos)
         self.drop()
-        self.goto(aboveToPos)
+        self.goto(aboveTo)
         if home:
             self.home()
 
-    def capturePiece(self, fromPos: "list[float]", toPos: "list[float]", capturePos: "list[float]"):
-        aboveToPos = copy.deepcopy(toPos)
-        aboveToPos[2] += self.travelHeight
-        self.goto(aboveToPos)
+    def capturePiece(
+        self, fromPos: "list[float]", toPos: "list[float]", capturePos: "list[float]"
+    ):
+        """Capture a piece: move captured piece to capturePos, then move attacking piece."""
+        aboveTo = copy.deepcopy(toPos)
+        aboveTo[2] += self.travelHeight
+        self.goto(aboveTo)
         self.goto(toPos)
         self.grab()
-        self.goto(aboveToPos)
+        self.goto(aboveTo)
         self.goto(capturePos)
         self.drop()
         self.movePiece(fromPos, toPos)
-    
-    def enPassent(self, fromPos: "list[float]", toPos: "list[float]", targetPos: "list[float]", capturePos: "list[float]"):
-        self.movePiece(fromPos, toPos, False)
+
+    def enPassent(
+        self,
+        fromPos: "list[float]",
+        toPos: "list[float]",
+        targetPos: "list[float]",
+        capturePos: "list[float]",
+    ):
+        """Perform an en passant capture."""
+        self.movePiece(fromPos, toPos, home=False)
         self.movePiece(targetPos, capturePos)
 
-    def castle(self, fromPosKing: "list[float]", toPosKing: "list[float]", fromPosRook: "list[float]", toPosRook: "list[float]"):
-        self.movePiece(fromPosKing, toPosKing, False)
+    def castle(
+        self,
+        fromPosKing: "list[float]",
+        toPosKing: "list[float]",
+        fromPosRook: "list[float]",
+        toPosRook: "list[float]",
+    ):
+        """Perform a castling move (king + rook)."""
+        self.movePiece(fromPosKing, toPosKing, home=False)
         self.movePiece(fromPosRook, toPosRook)
-    
-    def promotion(self, fromPos: "list[float]", capturePos: "list[float]"):
-        self.movePiece(fromPos, capturePos)
-        # Request piece promotion.
-    
-    def capturePromotion(self, fromPos: "list[float]", toPos: "list[float]", capturePos: "list[float]"):
-        self.movePiece(fromPos, capturePos, False)
-        self.movePiece(toPos, capturePos)
-        # Request piece promotion.
 
-    if __name__ == '__main__':
-        pass
+    def promotion(self, fromPos: "list[float]", capturePos: "list[float]"):
+        """Remove the pawn for promotion (user must place the new piece)."""
+        self.movePiece(fromPos, capturePos)
+
+    def capturePromotion(
+        self, fromPos: "list[float]", toPos: "list[float]", capturePos: "list[float]"
+    ):
+        """Capture promotion: remove both pawn and captured piece."""
+        self.movePiece(toPos, capturePos, home=False)
+        self.movePiece(fromPos, capturePos)

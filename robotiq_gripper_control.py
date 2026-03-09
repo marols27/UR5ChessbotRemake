@@ -1,92 +1,70 @@
-import rtde_control
-from robotiq_preamble import ROBOTIQ_PREAMBLE
+"""
+Robotiq gripper control via UR RTDE interface.
+
+In simulation mode, all methods are no-ops that log their actions.
+"""
+
+import logging
 import time
 
+from simulation import SIMULATION_MODE
 
-class RobotiqGripper(object):
-    """ 
-    RobotiqGripper is a class for controlling a robotiq gripper using the
-    ur_rtde robot interface. 
-      
-    Attributes: 
-        rtde_c (rtde_control.RTDEControlInterface): The interface to use for the communication
+logger = logging.getLogger(__name__)
+
+
+class RobotiqGripper:
     """
-    def __init__(self, rtde_c): 
-        """ 
-        The constructor for RobotiqGripper class. 
-  
-        Parameters: 
-           rtde_c (rtde_control.RTDEControlInterface): The interface to use for the communication
-        """
+    Controls a Robotiq gripper through the UR RTDE control interface.
+
+    In simulation mode, all calls are no-ops and log the requested action.
+    """
+
+    def __init__(self, rtde_c=None):
+        self.simulation = SIMULATION_MODE
         self.rtde_c = rtde_c
 
-    def call(self, script_name, script_function):
+        if not self.simulation:
+            from robotiq_preamble import ROBOTIQ_PREAMBLE
+
+            self._preamble = ROBOTIQ_PREAMBLE
+            if rtde_c is None:
+                raise ValueError("rtde_c is required when not in simulation mode")
+        else:
+            self._preamble = ""
+            logger.info("RobotiqGripper running in SIMULATION mode")
+
+    def call(self, script_name: str, script_function: str) -> bool:
+        if self.simulation:
+            logger.debug(f"[SIM] Gripper script call: {script_name}")
+            return True
         return self.rtde_c.sendCustomScriptFunction(
             "ROBOTIQ_" + script_name,
-            ROBOTIQ_PREAMBLE + script_function
+            self._preamble + script_function,
         )
 
-    def activate(self):
-        """ 
-        Activates the gripper. Currently the activation will take 5 seconds.
-           
-        Returns: 
-            True if the command succeeded, otherwise it returns False
-        """
+    def activate(self) -> bool:
+        """Activate the gripper. Takes ~5 seconds on real hardware."""
         ret = self.call("ACTIVATE", "rq_activate()")
-        time.sleep(5)  # HACK
+        if not self.simulation:
+            time.sleep(5)
         return ret
 
-    def set_speed(self, speed):
-        """ 
-        Set the speed of the gripper. 
-  
-        Parameters: 
-            speed (int): speed as a percentage [0-100]
-          
-        Returns: 
-            True if the command succeeded, otherwise it returns False
-        """
-        return self.call("SET_SPEED", "rq_set_speed_norm(" + str(speed) + ")")
+    def set_speed(self, speed: int) -> bool:
+        """Set gripper speed (0-100%)."""
+        return self.call("SET_SPEED", f"rq_set_speed_norm({speed})")
 
-    def set_force(self, force):
-        """ 
-        Set the force of the gripper. 
-  
-        Parameters: 
-            force (int): force as a percentage [0-100]
-          
-        Returns: 
-            True if the command succeeded, otherwise it returns False
-        """
-        return self.call("SET_FORCE", "rq_set_force_norm(" + str(force) + ")")
+    def set_force(self, force: int) -> bool:
+        """Set gripper force (0-100%)."""
+        return self.call("SET_FORCE", f"rq_set_force_norm({force})")
 
-    def move(self, pos_in_mm):
-        """ 
-        Move the gripper to a specified position in (mm).
-  
-        Parameters: 
-            pos_in_mm (int): position in millimeters.
-          
-        Returns: 
-            True if the command succeeded, otherwise it returns False
-        """
-        return self.call("MOVE", "rq_move_and_wait_mm(" + str(pos_in_mm) + ")")
+    def move(self, pos_in_mm: int) -> bool:
+        """Move the gripper to a position in mm."""
+        return self.call("MOVE", f"rq_move_and_wait_mm({pos_in_mm})")
 
-    def open(self):
-        """ 
-        Open the gripper.
-           
-        Returns: 
-            True if the command succeeded, otherwise it returns False
-        """
+    def open(self) -> bool:
+        """Open the gripper."""
         return self.call("OPEN", "rq_open_and_wait()")
 
-    def close(self):
-        """ 
-        Close the gripper.
-           
-        Returns: 
-            True if the command succeeded, otherwise it returns False
-        """
+    def close(self) -> bool:
+        """Close the gripper."""
         return self.call("CLOSE", "rq_close_and_wait()")

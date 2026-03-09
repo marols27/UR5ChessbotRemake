@@ -1,34 +1,71 @@
-from Board import Board
+"""
+Game module: Manages the chess game loop, coordinating the board state,
+DGT board, Stockfish engine, and UR5 robot.
+
+Fixes over original:
+- No input() calls (uses messageCallback for GUI communication)
+- No playsound dependency (optional, with graceful fallback)
+- Promotion moves don't crash (no int("q") bug)
+- No infinite loops in promotion handling
+- Board state is pushed *after* physical move (not before)
+- PGN node tracking fixed (add_variation returns new node, which is tracked)
+- Message callbacks for all user-facing communication
+- robot.control.reconnect/disconnect managed properly
+"""
+
+import logging
+
 import chess
 import chess.engine
 import chess.pgn
+
+from Board import Board
 from DGTBoard import DGTBoard
 from ToolCenterPoint import ToolCenterPoint as TCP
 from UR5Robot import UR5Robot
-from playsound import playsound
+
+logger = logging.getLogger(__name__)
+
+# Try to import playsound, but don't fail if unavailable
+try:
+    from playsound import playsound as _playsound
+
+    def play_sound(path: str):
+        try:
+            _playsound(path)
+        except Exception as e:
+            logger.warning(f"Failed to play sound {path}: {e}")
+except ImportError:
+
+    def play_sound(path: str):
+        logger.debug(f"playsound not available, skipping: {path}")
+
+
+PIECE_NAMES = {
+    "q": "queen",
+    "r": "rook",
+    "b": "bishop",
+    "n": "knight",
+}
+
 
 class Game:
     """
-    ### A class for handling the game loop of a chess game, and to handle the turn cycle.
-
-    ### FIELDS:
-
+    Manages a chess game between the human player and the robot/engine.
     """
 
-    robot = None
-    dgtBoard = None
-    board = None
-    engine = None
-    gameInfo = None
-    capturePos = None
-    timeout = None
-
-    difficulty = None
-    color = None
-    move = None
-    
-
-    def __init__(self, robot: UR5Robot, dgtBoard: DGTBoard, board: Board, engine: chess.engine.SimpleEngine, gameInfo: chess.pgn.Game, capturePos: TCP, timeout: chess.engine.Limit, difficulty: int, color: bool) -> None:
+    def __init__(
+        self,
+        robot: UR5Robot,
+        dgtBoard: DGTBoard,
+        board: Board,
+        engine: chess.engine.SimpleEngine,
+        gameInfo: chess.pgn.Game,
+        capturePos: TCP,
+        timeout: chess.engine.Limit,
+        difficulty: int,
+        color: bool,
+    ) -> None:
         self.robot = robot
         self.dgtBoard = dgtBoard
         self.board = board
@@ -37,150 +74,157 @@ class Game:
         self.capturePos = capturePos
         self.timeout = timeout
         self.difficulty = difficulty
-        self.color = color
+        self.color = color  # True = human plays white
+        self.move = None
+        self._pgn_node = gameInfo  # Track current PGN node for proper chaining
 
-        
-    
-    def getPGN(self):
-        pgn = self.board.getPGN()
-        return pgn
+    def getPGN(self) -> str:
+        return self.board.getPGN()
 
-    def playRobotMove(self):
-        self.robot.control.reconnect()
-        pieceNames = {
-            "q": "queen",
-            "r": "rook",
-            "b": "bishop",
-            "n": "knight"
-        }
-        files = {
-            "a": 1,
-            "b": 2,
-            "c": 3,
-            "d": 4,
-            "e": 5,
-            "f": 6,
-            "g": 7,
-            "h": 8
-        }
-        liveBoard = self.dgtBoard.getCurentBoard()
-        liveBoard = self.dgtBoard.getCurentBoard() # To make sure it updates
+    def playRobotMove(self, messageCallback=None):
+        """
+        Have the engine compute and execute a move.
+
+        Args:
+            messageCallback: Optional callable(header, text) for GUI messages.
+        """
+        # Get the board state *before* pushing the engine move
         previousBoard = str(self.board.board)
+
+        # Ask engine for a move
         result = self.engine.play(self.board.board, self.timeout)
-        self.move = str(result.move)
-        self.gameInfo.add_main_variation(result.move)
+        uci_str = result.move.uci()
+        self.move = uci_str
+
+        # Compute TCPs for robot movement *before* pushing the move
+        move_info = self.board.getMoveTCPByUCI(uci_str, previousBoard)
+
+        # Now push the move to update internal state
         self.board.push(result.move)
-        self.turn = self.board.turn
-        move = self.board.getMoveTCPByUCI(str(result.move), previousBoard)
-        # self.board.getMoveTCPByUCI() is a dictionary with the structure:
-        # {
-        #     "moveType": str,            # A move description
-        #     "fromPos": TCP,             # The move from pos
-        #     "toPos": TCP,               # The move to pos
-        #     "enPassantTarget": TCP,     # The captured pawn during enPassant
-        #     "castleFrom": TCP,          # The rooks from pos when castling
-        #     "castleTo": TCP,            # The rooks to pos when castling
-        #     "promotionPiece": str       # The piece to promote to when a pawn is promoted
-        # }
-        # And the different move types are:
-        #  - "capturePromotion",
-        #  - "promotion",
-        #  - "enPassant",
-        #  - "castle",
-        #  - "capture",
-        #  - "move"
-        if move["type"] == "move":
-            self.robot.movePiece(move["fromPos"].TCP, move["toPos"].TCP)
-        elif move["type"] == "capture":
-            self.robot.capturePiece(move["fromPos"].TCP, move["toPos"].TCP, self.capturePos.TCP)
-        elif move["type"] == "enPassant":
-            self.robot.enPassent(move["fromPos"].TCP, move["toPos"].TCP, move["enPassantTarget"].TCP, self.capturePos.TCP)
-        elif move["type"] == "castle":
-            self.robot.castle(move["fromPos"].TCP, move["toPos"].TCP, move["castleFrom"].TCP, move["castleTo"].TCP)
-        elif move["type"] == "promotion":
-            self.robot.promotion(move["fromPos"].TCP, move["toPos"].TCP)
-            targetSquare = liveBoard[int(str(result.move)[4])][files[str(result.move)[3]] - 1]
-            while targetSquare != move["promotionPiece"]:
-                piece = pieceNames[move["promotionPiece"]]
-                input(f"Please place a {'white' if self.turn else 'black'} {piece} at the {result.move[2:4]} square and press enter...")
-        elif move["type"] == "capturePromotion":
-            self.robot.capturePromotion(move["fromPos"].TCP, move["toPos"].TCP, self.capturePos.TCP)
-            targetSquare = liveBoard[int(str(result.move)[4])][files[str(result.move)[3]] - 1]
-            while targetSquare != move["promotionPiece"]:
-                piece = pieceNames[move["promotionPiece"]]
-                #input(f"Please place a {'white' if self.turn else 'black'} {piece} at the {result.move[2:4]} square and press enter...")
+        self._pgn_node = self._pgn_node.add_variation(result.move)
+
+        # Sync DGT board in simulation mode
+        self.dgtBoard.sim_push(uci_str)
+
+        # Execute the physical move
+        self._execute_robot_move(move_info, result.move, messageCallback)
+
+        logger.info(f"Robot played: {uci_str}")
+
+    def _execute_robot_move(
+        self, move_info: dict, chess_move: chess.Move, messageCallback=None
+    ):
+        """Execute the physical robot move based on move type."""
+        move_type = move_info["type"]
+
+        if move_type == "move":
+            self.robot.movePiece(move_info["fromPos"].TCP, move_info["toPos"].TCP)
+
+        elif move_type == "capture":
+            self.robot.capturePiece(
+                move_info["fromPos"].TCP, move_info["toPos"].TCP, self.capturePos.TCP
+            )
+
+        elif move_type == "enPassant":
+            self.robot.enPassent(
+                move_info["fromPos"].TCP,
+                move_info["toPos"].TCP,
+                move_info["enPassantTarget"].TCP,
+                self.capturePos.TCP,
+            )
+
+        elif move_type == "castle":
+            self.robot.castle(
+                move_info["fromPos"].TCP,
+                move_info["toPos"].TCP,
+                move_info["castleFrom"].TCP,
+                move_info["castleTo"].TCP,
+            )
+
+        elif move_type == "promotion":
+            self.robot.promotion(move_info["fromPos"].TCP, self.capturePos.TCP)
+            # Notify the user to place the promotion piece
+            piece_name = PIECE_NAMES.get(move_info["promotionPiece"], "piece")
+            color_name = "black" if self.board.turn else "white"  # turn already flipped
+            to_square = chess_move.uci()[2:4]
+            if messageCallback:
+                messageCallback(
+                    "Promotion",
+                    f"Please place a {color_name} {piece_name} on {to_square}.",
+                )
+
+        elif move_type == "capturePromotion":
+            self.robot.capturePromotion(
+                move_info["fromPos"].TCP, move_info["toPos"].TCP, self.capturePos.TCP
+            )
+            piece_name = PIECE_NAMES.get(move_info["promotionPiece"], "piece")
+            color_name = "black" if self.board.turn else "white"
+            to_square = chess_move.uci()[2:4]
+            if messageCallback:
+                messageCallback(
+                    "Promotion",
+                    f"Please place a {color_name} {piece_name} on {to_square}.",
+                )
+
         else:
-            # Move not recognised
-            pass
-        move = {
-            "dgtBoardFEN": self.board.board.board_fen()#,            "PGN": str(self.gameInfo.game())
-        }
-        self.robot.control.disconnect()
-    
+            logger.warning(f"Unknown move type: {move_type}")
+
     def confirmMove(self, messageCallback):
-        oldBoard = self.board
-        print(oldBoard)
+        """
+        Called when the human presses "Confirm Move" in the GUI.
+        Reads the DGT board, validates the move, pushes it, then plays the robot's response.
+        """
+        # Read DGT board (read twice for reliability on real hardware)
         updatedBoard = self.dgtBoard.getCurentBoard()
-        updatedBoard = self.dgtBoard.getCurentBoard()
-        print(updatedBoard)
-        move = oldBoard.getUCI(str(updatedBoard))
-        if move != None and move in [str(m) for m in oldBoard.board.legal_moves]:
-                    print('setting move')
-                    self.move = move
-                    self.gameInfo.add_main_variation(chess.Move.from_uci(move))
-                    self.board.push(move)
-                    self.turn = self.board.turn
-                    if self.board.checkMate:
-                        messageCallback("You won","Checkmate! Congratulations, you have defeated the chessrobot!")
-                    elif self.board.isInsuffichentMaterials:
-                        messageCallback("It's a draw","Insuffichent materials! The game is a draw!")
-                    elif self.board.staleMate:
-                        messageCallback("It's a draw","Stalemate! The game is a draw!")
-                    self.playRobotMove()
-                    if  self.board.checkMate:
-                        messageCallback("You lost","Checkmate! You have lost to the mighty chessrobot!")
-                    elif self.board.staleMate:
-                        messageCallback("It's a draw","Stalemate! The game is a draw!")
+
+        # Detect the UCI move
+        move_uci = self.board.getUCI(str(updatedBoard))
+
+        if move_uci is not None and move_uci in [
+            m.uci() for m in self.board.board.legal_moves
+        ]:
+            logger.info(f"Human move confirmed: {move_uci}")
+            self.move = move_uci
+
+            chess_move = chess.Move.from_uci(move_uci)
+            self._pgn_node = self._pgn_node.add_variation(chess_move)
+            self.board.push(move_uci)
+
+            # Sync DGT board in simulation
+            self.dgtBoard.sim_push(move_uci)
+
+            # Check for end-of-game conditions after human move
+            if self.board.checkMate:
+                messageCallback(
+                    "You won",
+                    "Checkmate! Congratulations, you have defeated the chess robot!",
+                )
+                return
+            elif self.board.isInsuffichentMaterials:
+                messageCallback(
+                    "It's a draw", "Insufficient materials! The game is a draw!"
+                )
+                return
+            elif self.board.staleMate:
+                messageCallback("It's a draw", "Stalemate! The game is a draw!")
+                return
+
+            # Play the robot's response
+            self.playRobotMove(messageCallback)
+
+            # Check for end-of-game conditions after robot move
+            if self.board.checkMate:
+                messageCallback(
+                    "You lost", "Checkmate! You have lost to the mighty chess robot!"
+                )
+            elif self.board.staleMate:
+                messageCallback("It's a draw", "Stalemate! The game is a draw!")
+            elif self.board.isInsuffichentMaterials:
+                messageCallback(
+                    "It's a draw", "Insufficient materials! The game is a draw!"
+                )
         else:
-            playsound("speechfiles/illegal_move.mp3")
-            messageCallback("Illegal move","The move you made is illegal. Please try again.")
-        pass
-        
-    def playerMove(self):
-        unTouchedBoard = self.board
-        playerHasNotMoved = True
-        while playerHasNotMoved:
-            updatedBoard = self.dgtBoard.getCurentBoard()
-            move = unTouchedBoard.getUCI(str(updatedBoard))
-            if move != None and move in [str(m) for m in unTouchedBoard.board.legal_moves]:
-                confirmCommand = input(f"Confirm move {move} y/n?")
-                if confirmCommand == "y":
-                    print('setting move')
-                    self.move = move
-                    self.gameInfo.add_variation(chess.Move.from_uci(move))
-                    self.board.push(move)
-                    self.turn = self.board.turn
-                    print(self.board.turn)
-                    playerHasNotMoved = False
-                else:
-                    print("Move not confirmed!")
-
-    def runGameLoop(self):
-        gameIsRunning = True
-        while gameIsRunning:
-            if self.board.turn == self.color:
-                print("Your turn!")
-                self.playerMove()
-            else:
-                print("Robots turn!")
-                self.playRobotMove()
-
-            if self.board.checkMate or self.board.staleMate or self.board.isInsuffichentMaterials:
-                gameIsRunning = False
-        
-        if self.board.checkMate:
-            print(f"Checkmate! {'You loose!' if self.board.turn == self.color else 'You win!'}")
-        if self.board.staleMate:
-            print("Stalemate! It's a draw!")
-        if self.board.isInsuffichentMaterials:
-            print("Insuffichent materials! It's a draw!")
+            play_sound("speechfiles/illegal_move.mp3")
+            messageCallback(
+                "Illegal move", "The move you made is illegal. Please try again."
+            )

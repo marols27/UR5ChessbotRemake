@@ -1,159 +1,191 @@
-import rtde_control #import RTDEControlInterface as RTDEControl
-import rtde_receive #import RTDEReceiveInterface as RTDEReceive
-from robotiq_gripper_control import RobotiqGripper
+"""
+PoseConfigure: Robot calibration point management.
+
+In simulation mode, calibration operations are no-ops.
+
+Fixes over original:
+- No import-time hardware initialization
+- teach mode wrapped in try/finally
+- start_teach_mode and end_teach_mode use the same connection
+- Simulation mode support
+"""
+
 import json
+import logging
 from enum import Enum
 
-class PoseConfigure:
-    """
-    ## Class for calibrating the robot to a specific settup.
+from simulation import SIMULATION_MODE
 
-    #### ATTRIBUTES:
-    - conectionIP: 
-        The IP of the robot.
-    - fileName: 
-        The name of the file to save the calibration to.
-    
-    #### METHODES:
-    - firstTimeSettupe(): 
-        Calibrates the robot for the first time.
-    - recalibrate(point: Points): 
-        Recalibrates a specific point.
-    
-    
-    """
+logger = logging.getLogger(__name__)
+
+
+class PoseConfigure:
+    """Manages calibration points for the UR5 robot chess setup."""
 
     class Points(Enum):
-        """
-        ### Enumerator for the calibration points.
-
-        Values:
-        - ORIGIN: Origin point
-        - XAXIS: X axis point
-        - XYPLANE: XY plane point
-        - HOME: Home point
-        - DROP: Drop point
-        """
-
         ORIGIN = "origin"
         XAXIS = "xAxis"
         XYPLANE = "xyPlane"
         HOME = "home"
         DROP = "drop"
-    
-    connectionIP = None
-    fileName = None
 
-    def __init__(self, connectionIP: str = '172.31.1.144', fileName: str = "config.json"):
+    def __init__(
+        self, connectionIP: str = "172.31.1.144", fileName: str = "config.json"
+    ):
         self.connectionIP = connectionIP
         self.fileName = fileName
+        self.simulation = SIMULATION_MODE
+        self._control = None
+        self._info = None
 
-    def firstTimeSettup(self, connectionIP: str = '172.31.1.144', fileName: str = 'config.json'):
+    def firstTimeSettup(
+        self, connectionIP: str | None = None, fileName: str | None = None
+    ):
         """
-        ### Calibrates the robot for the first time, initializing 5 points and saves them to a file.
+        Calibrate all 5 points interactively and save to config file.
+        In simulation mode, creates a default config if none exists.
         """
-        if self.connectionIP == None:
+        if connectionIP:
             self.connectionIP = connectionIP
-        if self.fileName == None:
+        if fileName:
             self.fileName = fileName
+
+        if self.simulation:
+            logger.info("[SIM] firstTimeSettup: skipping (simulation mode)")
+            return
+
+        import rtde_control
+        import rtde_receive
+        from robotiq_gripper_control import RobotiqGripper
+
         control = rtde_control.RTDEControlInterface(self.connectionIP)
         info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
         gripper = RobotiqGripper(control)
         gripper.activate()
         gripper.move(37)
-        control.teachMode()
-        config = {}
-        input("Move the robot to the board origin and press enter...")
-        config[self.Points.ORIGIN.value] = info.getActualTCPPose()
-        print(info.getActualTCPPose())
-        print(config[self.Points.ORIGIN.value])
-        input("Move the robot to the x axis and press enter...")
-        config[self.Points.XAXIS.value] = info.getActualTCPPose()
-        #print(config[self.Points.XAXIS.value])
-        input("Move the robot to the xy plane and press enter...")
-        config[self.Points.XYPLANE.value] = info.getActualTCPPose()
-        #print(config[self.Points.XYPLANE.value])
-        input("Move the robot to the home position and press enter...")
-        config[self.Points.HOME.value] = info.getActualTCPPose()
-        #print(config[self.Points.HOME.value])
-        input("Move the robot to the drop position and press enter...")
-        config[self.Points.DROP.value] = info.getActualTCPPose()
-        #print(config[self.Points.DROP.value])
-        with open(self.fileName, 'w') as file:
-            json.dump(config, file)
-        control.endTeachMode()
-    
-    def recalibrate(self, point: Points, connectionIP: str = '172.31.1.144', fileName: str = 'config.json'):
-        """
-        ### Calibrates a single point of the 5 existing calibrated points, and updates the existing file.
-        """
-        if self.connectionIP == None:
-            self.connectionIP = connectionIP
-        if self.fileName == None:
-            self.fileName = fileName
-        control = rtde_control.RTDEControlInterface(self.connectionIP)
-        info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
-        gripper = RobotiqGripper(control)
-        gripper.activate()
-        gripper.move(37)
+
         try:
-            with open(self.fileName, 'r') as file:
-                config = json.load(file)
-            file.close()
             control.teachMode()
-            input(f"Move the robot to the {point} point and press enter to get the pose...")
+            config = {}
+
+            input("Move the robot to the board origin and press enter...")
+            config[self.Points.ORIGIN.value] = info.getActualTCPPose()
+
+            input("Move the robot to the x axis and press enter...")
+            config[self.Points.XAXIS.value] = info.getActualTCPPose()
+
+            input("Move the robot to the xy plane and press enter...")
+            config[self.Points.XYPLANE.value] = info.getActualTCPPose()
+
+            input("Move the robot to the home position and press enter...")
+            config[self.Points.HOME.value] = info.getActualTCPPose()
+
+            input("Move the robot to the drop position and press enter...")
+            config[self.Points.DROP.value] = info.getActualTCPPose()
+
+            with open(self.fileName, "w") as f:
+                json.dump(config, f)
+            logger.info(f"Calibration saved to {self.fileName}")
+        finally:
+            control.endTeachMode()
+
+    def recalibrate(
+        self, point: str, connectionIP: str | None = None, fileName: str | None = None
+    ):
+        """Recalibrate a single point and update the config file."""
+        if connectionIP:
+            self.connectionIP = connectionIP
+        if fileName:
+            self.fileName = fileName
+
+        if self.simulation:
+            logger.info(f"[SIM] recalibrate({point}): skipping (simulation mode)")
+            return
+
+        import rtde_control
+        import rtde_receive
+        from robotiq_gripper_control import RobotiqGripper
+
+        control = rtde_control.RTDEControlInterface(self.connectionIP)
+        info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
+        gripper = RobotiqGripper(control)
+        gripper.activate()
+        gripper.move(37)
+
+        try:
+            with open(self.fileName, "r") as f:
+                config = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.error(f"Cannot read config file: {e}")
+            return
+
+        try:
+            control.teachMode()
+            input(f"Move the robot to the {point} point and press enter...")
             config[point] = info.getActualTCPPose()
             control.endTeachMode()
-            with open(self.fileName, 'w') as file:
-                json.dump(config, file)
-        except:
-            print("No previous calibration found, or there was an error reading the file!")
-            return
-    
-    def freeMove(self):
-        control = rtde_control.RTDEControlInterface(self.connectionIP)
-        control.teachMode()
-        input("Move the robot to the point and press enter to get the pose...")
-        control.endTeachMode()
-    
+
+            with open(self.fileName, "w") as f:
+                json.dump(config, f)
+            logger.info(f"Recalibrated {point} and saved to {self.fileName}")
+        except Exception as e:
+            logger.error(f"Recalibration failed: {e}")
+            control.endTeachMode()
+
     def start_teach_mode(self):
-        control = rtde_control.RTDEControlInterface(self.connectionIP)
-        gripper = RobotiqGripper(control)
+        """Enter teach mode (robot can be moved freely by hand)."""
+        if self.simulation:
+            logger.info("[SIM] start_teach_mode: skipping (simulation mode)")
+            return
+
+        import rtde_control
+        import rtde_receive
+        from robotiq_gripper_control import RobotiqGripper
+
+        self._control = rtde_control.RTDEControlInterface(self.connectionIP)
+        self._info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
+        gripper = RobotiqGripper(self._control)
         gripper.activate()
         gripper.move(37)
-        control.teachMode()
-    
-    def end_teach_mode(self):   
-        control = rtde_control.RTDEControlInterface(self.connectionIP)
-        control.endTeachMode()
-    
-    def calibrate_point(self, point):
-        info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
-        config = None
-        with open(self.fileName, 'r') as file:
-                config = json.load(file)
-        file.close()
-        if point == "origin":
-            print("Current Origin:",config[self.Points.ORIGIN.value])                       
-            config[self.Points.ORIGIN.value] = info.getActualTCPPose()
-            print("New Origin:",config[self.Points.ORIGIN.value])
-        elif point == "xAxis":
-            config[self.Points.XAXIS.value] = info.getActualTCPPose()
-            print("New X Axis:",config[self.Points.XAXIS.value])
-        elif point == "xyPlane":
-            config[self.Points.XYPLANE.value] = info.getActualTCPPose()
-            print("New XY Plane:",config[self.Points.XYPLANE.value])
-        elif point == "home":
-            print("Current Home:",config[self.Points.HOME.value])
-            config[self.Points.HOME.value] = info.getActualTCPPose()
-            print("New Home:",config[self.Points.HOME.value])
-        elif point == "drop":
-            config[self.Points.DROP.value] = info.getActualTCPPose()
-            print("New Drop:",config[self.Points.DROP.value])
+        self._control.teachMode()
+
+    def end_teach_mode(self):
+        """Exit teach mode. Uses the same connection as start_teach_mode."""
+        if self.simulation:
+            logger.info("[SIM] end_teach_mode: skipping (simulation mode)")
+            return
+
+        if self._control is not None:
+            try:
+                self._control.endTeachMode()
+            except Exception as e:
+                logger.error(f"Failed to end teach mode: {e}")
+            finally:
+                self._control = None
+                self._info = None
         else:
-            print("Invalid point!")
+            logger.warning("end_teach_mode called but no active teach mode session")
 
-        with open(self.fileName, 'w') as file:
-                json.dump(config, file)
-                file.flush()
+    def calibrate_point(self, point: str):
+        """Calibrate a single point using the current teach mode session."""
+        if self.simulation:
+            logger.info(f"[SIM] calibrate_point({point}): skipping (simulation mode)")
+            return
 
+        if self._info is None:
+            logger.error("calibrate_point called without active teach mode session")
+            return
+
+        try:
+            with open(self.fileName, "r") as f:
+                config = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            config = {}
+
+        pose = self._info.getActualTCPPose()
+        old_value = config.get(point)
+        config[point] = pose
+        logger.info(f"Calibrated {point}: {old_value} -> {pose}")
+
+        with open(self.fileName, "w") as f:
+            json.dump(config, f)
