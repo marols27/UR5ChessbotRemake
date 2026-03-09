@@ -5,11 +5,13 @@ Fixes:
 - Uses customtkinter for consistent theming
 - Proper window close handler
 - Logging configuration
+- Fullscreen set once here (not per-screen)
 """
 
 import logging
 import customtkinter as ctk
 from navigation import navigate_to_home
+from theme import BG_PRIMARY
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +28,8 @@ class App:
         self.root = ctk.CTk()
         self.root.title("HVL Chess Robot")
         self.root.geometry("800x600")
+        self.root.configure(fg_color=BG_PRIMARY)
+        self.root.attributes("-fullscreen", True)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         navigate_to_home(self.root)

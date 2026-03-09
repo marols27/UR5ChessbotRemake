@@ -1,142 +1,93 @@
 """
 Home screen: Main menu with Play Game, Configure Robot, and Exit buttons.
 
-Fix: Uses os.path for reliable image path resolution.
+Modernized with dark theme, StatusBar, compact layout, and theme factories.
 """
 
 import os
 import customtkinter as ctk
-from navigation import navigate_to_selection, navigate_to_calibration
 from PIL import Image
+
+from navigation import navigate_to_selection, navigate_to_calibration
+from components.status_bar import StatusBar
+from theme import (
+    BG_PRIMARY, BG_SECONDARY, BORDER_SUBTLE, TEXT_PRIMARY, TEXT_SECONDARY,
+    font_h1, font_body, primary_button, secondary_button, danger_button,
+    card_frame, heading, CORNER_RADIUS,
+)
 
 
 def show_home_screen(root):
-    root.attributes("-fullscreen", True)
-
     for widget in root.winfo_children():
         widget.destroy()
 
-    ctk.set_appearance_mode("dark")
-    ctk.set_default_color_theme("blue")
+    # Main container
+    container = ctk.CTkFrame(root, fg_color=BG_PRIMARY, corner_radius=0)
+    container.pack(fill="both", expand=True)
 
-    # Shared button styling
-    BUTTON_HEIGHT = 120
-    BUTTON_FONT = ctk.CTkFont(size=36, weight="bold")
-    CORNER_RADIUS = 40
-    BORDER_COLOR = "white"
-    BORDER_WIDTH = 10
-    FG_COLOR_DEFAULT = "#252525"
-    TEXT_COLOR_DEFAULT = "white"
+    # Status bar
+    status_bar = StatusBar(container, show_connections=True)
+    status_bar.pack(fill="x")
 
-    # Main Frame
-    home_frame = ctk.CTkFrame(root, corner_radius=10)
-    home_frame.pack(fill="both", expand=True, padx=20, pady=20)
+    # Content area
+    content = ctk.CTkFrame(container, fg_color="transparent")
+    content.pack(fill="both", expand=True, padx=40, pady=20)
+    content.grid_columnconfigure(0, weight=1)
+    content.grid_rowconfigure(1, weight=1)
 
-    home_frame.grid_rowconfigure(0, weight=0)
-    home_frame.grid_rowconfigure(1, weight=0)
-    home_frame.grid_columnconfigure(0, weight=1)
-    home_frame.grid_columnconfigure(1, weight=1)
+    # Top section: logo + title + subtitle
+    top = ctk.CTkFrame(content, fg_color="transparent")
+    top.grid(row=0, column=0, sticky="ew", pady=(20, 0))
+    top.grid_columnconfigure(1, weight=1)
 
-    # LEFT SECTION (Title and Subtitle)
-    left_frame = ctk.CTkFrame(home_frame, corner_radius=10)
-    left_frame.grid(row=0, column=0, sticky="w", padx=(0, 10), pady=(10, 10))
-
-    welcome_label = ctk.CTkLabel(
-        left_frame,
-        text="The HVL Robotics Chess Robot",
-        anchor="w",
-        font=ctk.CTkFont(size=52, weight="bold"),
-    )
-    welcome_label.pack()
-
-    subtitle_text = """
-        Challenge the HVL Robotics chess robot.
-        Developed by students, funded by teknoløftet
-
-        READ THIS BEFORE PLAYING:
-
-        1. Press the "Play Game" button to get started.
-        2. Choose the difficulty level and a color to play as.
-        3. Press start to begin the game.
-        4. Press confirm move after making a move.
-        5. The robot will make its move after you confirm yours.
-        6. Let the robot finish its move before making your next move.
-        """
-
-    subtitle_label = ctk.CTkLabel(
-        left_frame,
-        text=subtitle_text,
-        anchor="w",
-        font=ctk.CTkFont(size=40),
-    )
-    subtitle_label.pack(pady=(0, 10))
-
-    # RIGHT SECTION (Image)
-    right_frame = ctk.CTkFrame(home_frame, corner_radius=10)
-    right_frame.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(10, 10))
-
-    # FIX: Use os.path.dirname(__file__) for reliable path resolution
+    # Logo
     image_path = os.path.join(
         os.path.dirname(__file__), "assets", "images", "robotics_logo.jpg"
     )
     if os.path.exists(image_path):
-        robotics_logo = ctk.CTkImage(Image.open(image_path), size=(500, 500))
-        logo_label = ctk.CTkLabel(right_frame, image=robotics_logo, text="")
-        logo_label.pack(pady=(0, 0))
+        logo_img = ctk.CTkImage(Image.open(image_path), size=(180, 180))
+        logo_label = ctk.CTkLabel(top, image=logo_img, text="")
+        logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 30))
     else:
         placeholder = ctk.CTkLabel(
-            right_frame, text="[Logo]", font=ctk.CTkFont(size=24)
+            top, text="[Logo]", font=font_body(), text_color=TEXT_SECONDARY
         )
-        placeholder.pack(pady=(0, 0))
+        placeholder.grid(row=0, column=0, rowspan=2, padx=(0, 30))
 
-    # BUTTONS SECTION
-    buttons_frame = ctk.CTkFrame(home_frame, corner_radius=10)
-    buttons_frame.grid(row=1, column=0, columnspan=3, pady=(100, 10), sticky="w")
+    # Title
+    title = heading(top, "The HVL Robotics Chess Robot", level=1)
+    title.grid(row=0, column=1, sticky="sw", pady=(0, 4))
 
-    for i in range(3):
-        buttons_frame.grid_columnconfigure(i, weight=1, uniform="buttons")
-
-    play_button = ctk.CTkButton(
-        buttons_frame,
-        text="Play Game",
-        font=BUTTON_FONT,
-        text_color="black",
-        fg_color="#00cdac",
-        corner_radius=CORNER_RADIUS,
-        border_color=BORDER_COLOR,
-        border_width=BORDER_WIDTH,
-        height=BUTTON_HEIGHT,
-        hover=False,
-        command=lambda: navigate_to_selection(root),
+    # Compact instructions
+    instructions_text = (
+        "Challenge the chess robot! Choose difficulty and color, "
+        "then confirm each move. Let the robot finish before playing your next move."
     )
-    play_button.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
-
-    configure_robot_button = ctk.CTkButton(
-        buttons_frame,
-        text="Configure Robot",
-        font=BUTTON_FONT,
-        text_color=TEXT_COLOR_DEFAULT,
-        fg_color=FG_COLOR_DEFAULT,
-        corner_radius=CORNER_RADIUS,
-        border_color=BORDER_COLOR,
-        border_width=BORDER_WIDTH,
-        height=BUTTON_HEIGHT,
-        hover=False,
-        command=lambda: navigate_to_calibration(root),
+    instructions = ctk.CTkLabel(
+        top,
+        text=instructions_text,
+        font=font_body(),
+        text_color=TEXT_SECONDARY,
+        wraplength=700,
+        anchor="w",
+        justify="left",
     )
-    configure_robot_button.grid(row=0, column=1, padx=10, pady=5, sticky="nsew")
+    instructions.grid(row=1, column=1, sticky="nw")
 
-    exit_button = ctk.CTkButton(
-        buttons_frame,
-        text="Exit",
-        font=BUTTON_FONT,
-        text_color=TEXT_COLOR_DEFAULT,
-        fg_color=FG_COLOR_DEFAULT,
-        corner_radius=CORNER_RADIUS,
-        border_color=BORDER_COLOR,
-        border_width=BORDER_WIDTH,
-        height=BUTTON_HEIGHT,
-        hover=False,
-        command=root.destroy,
+    # Buttons section (centered at bottom)
+    btn_area = ctk.CTkFrame(content, fg_color="transparent")
+    btn_area.grid(row=1, column=0, sticky="s", pady=(0, 40))
+    btn_area.grid_columnconfigure((0, 1, 2), weight=1, uniform="btns")
+
+    play_btn = primary_button(
+        btn_area, "Play Game", lambda: navigate_to_selection(root)
     )
-    exit_button.grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
+    play_btn.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
+
+    config_btn = secondary_button(
+        btn_area, "Configure Robot", lambda: navigate_to_calibration(root)
+    )
+    config_btn.grid(row=0, column=1, padx=10, pady=5, sticky="nsew")
+
+    exit_btn = danger_button(btn_area, "Exit", root.destroy)
+    exit_btn.grid(row=0, column=2, padx=10, pady=5, sticky="nsew")

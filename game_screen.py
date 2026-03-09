@@ -1,13 +1,14 @@
 """
 Game screen: Main chess game UI.
 
-Fixes over original:
-- Hardware initialization wrapped in try/except with error handling
-- Robot/engine operations run in background thread to avoid UI freeze
-- Fixed confirm_move() infinite recursion
-- Fixed tautological FEN comparison for white player (was always True)
-- Proper engine cleanup on navigation away
-- Simulation mode support throughout
+Refactored:
+- Extracted _GameController class from closures for cleaner state management
+- StatusBar with live connection status
+- GameInfoPanel with turn indicator and inline status messages
+- 5 CTkMessagebox calls replaced with inline status panel messages
+- 4 CTkMessagebox calls kept for critical actions (robot/engine error, game end, resign)
+- Last-move highlighting after robot plays
+- Modernized buttons via theme factories
 """
 
 import logging
@@ -18,11 +19,18 @@ from CTkMessagebox import CTkMessagebox
 
 from components.chessboard import Chessboard
 from components.move_history import MoveHistory
+from components.status_bar import StatusBar
+from components.game_info import GameInfoPanel
 from DGTBoard import DGTBoard
 from UR5Robot import UR5Robot
 from Board import Board
 from Game import Game
 from simulation import SIMULATION_MODE
+from theme import (
+    BG_PRIMARY, BG_SECONDARY, BORDER_SUBTLE,
+    primary_button, danger_button, card_frame,
+    BOARD_HIGHLIGHT,
+)
 import Settings
 import chess
 import chess.engine
@@ -30,6 +38,261 @@ import chess.pgn
 import navigation
 
 logger = logging.getLogger(__name__)
+
+
+class _GameController:
+    """Manages game state and operations, extracted from nested closures."""
+
+    def __init__(self, root, game, dgt, robot, engine, board_canvas,
+                 move_history, info_panel, status_bar, color):
+        self.root = root
+        self.game = game
+        self.dgt = dgt
+        self.robot = robot
+        self.engine = engine
+        self.board_canvas = board_canvas
+        self.move_history = move_history
+        self.info_panel = info_panel
+        self.status_bar = status_bar
+        self.color = color
+
+        self._busy = threading.Event()
+        self._active = True
+        self._after_ids: list[str] = []
+
+    def cleanup(self):
+        """Clean up resources when navigating away."""
+        self._active = False
+        for aid in self._after_ids:
+            try:
+                self.root.after_cancel(aid)
+            except Exception:
+                pass
+        self._after_ids.clear()
+        if self.engine:
+            try:
+                self.engine.quit()
+            except Exception:
+                pass
+        self.robot.close()
+        self.dgt.close()
+
+    def return_to_home(self):
+        self.cleanup()
+        navigation.navigate_to_home(self.root)
+
+    def message_callback(self, header, text):
+        """Thread-safe message callback — schedules UI update on main thread."""
+        if not self._active:
+            return
+
+        def _show():
+            if not self._active:
+                return
+            logger.info(f"Message: {header} - {text}")
+            if header in ["You won", "You lost", "It's a draw"]:
+                msg = text + "\nDo you want to return to the home menu?"
+                msg_box = CTkMessagebox(
+                    title=header,
+                    message=msg,
+                    icon="question",
+                    option_1="Yes",
+                    option_2="No",
+                )
+                if msg_box.get() == "Yes":
+                    self.return_to_home()
+            elif header == "Promotion":
+                # Promotion placement info -> inline status
+                self.info_panel.set_status(text, "info")
+            else:
+                self.info_panel.set_status(f"{header}: {text}", "info")
+
+        try:
+            self.root.after(0, _show)
+        except RuntimeError:
+            pass
+
+    def _update_ui_after_move(self):
+        """Update UI elements after a move (called on main thread)."""
+        if not self._active:
+            return
+        fen = self.game.board.board.fen()
+        self.board_canvas.update_board(fen)
+        self.move_history.load_moves(self.game.board.board)
+
+        # Highlight last move
+        moves = list(self.game.board.board.move_stack)
+        if moves:
+            last = moves[-1]
+            uci = last.uci()
+            self.board_canvas.highlight_last_move(uci)
+            # Update last move display in info panel
+            try:
+                display_board = chess.Board()
+                for m in moves[:-1]:
+                    display_board.push(m)
+                san = display_board.san(last)
+                self.info_panel.set_last_move(san)
+            except Exception:
+                self.info_panel.set_last_move(uci)
+
+        # Update turn indicator
+        is_human_turn = self._is_human_turn()
+        self.info_panel.set_turn(is_human_turn)
+        if is_human_turn:
+            hint = " Click a piece to move." if SIMULATION_MODE else ""
+            self.status_bar.set_context("Your turn" + hint)
+        else:
+            self.status_bar.set_context("Robot thinking...")
+
+    def _is_human_turn(self):
+        """Check if it's the human player's turn."""
+        board = self.game.board.board
+        if self.color == "white":
+            return board.turn == chess.WHITE
+        else:
+            return board.turn == chess.BLACK
+
+    def confirm_move(self):
+        """Handle the confirm move button press."""
+        if self._busy.is_set():
+            logger.debug("Confirm move ignored: already processing")
+            return
+
+        if SIMULATION_MODE and self.dgt._sim_preview is None:
+            self.info_panel.set_status(
+                "Click on a piece and then a destination square to make your move.",
+                "info",
+            )
+            return
+
+        self.move_history.reset_to_current()
+        self.info_panel.set_turn(False)
+        self.info_panel.set_status("Processing move...", "info")
+        self.status_bar.set_context("Processing...")
+
+        def _worker():
+            self._busy.set()
+            try:
+                self.game.confirmMove(self.message_callback)
+                if self._active:
+                    try:
+                        self.root.after(0, self._update_ui_after_move)
+                    except RuntimeError:
+                        pass
+            except Exception as e:
+                logger.error(f"Error during confirmMove: {e}")
+                if self._active:
+                    try:
+                        self.root.after(
+                            0,
+                            lambda: self.info_panel.set_status(
+                                f"Error: {e}", "error"
+                            ),
+                        )
+                    except RuntimeError:
+                        pass
+            finally:
+                self._busy.clear()
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def resign_game(self):
+        msg_box = CTkMessagebox(
+            title="Resign",
+            message="Are you sure you want to resign the game?",
+            icon="question",
+            option_1="Yes",
+            option_2="No",
+        )
+        if msg_box.get() == "Yes":
+            self.return_to_home()
+
+    def play_first_move(self):
+        """Handle the first move of the game."""
+        if not self._active:
+            return
+        correct_start_fen = self.game.board.board.fen().split(" ")[0]
+
+        if self.color == "black":
+            current_dgt_fen = self.game.dgtBoard.getCurentBoardFen()
+            if current_dgt_fen == correct_start_fen:
+                self.info_panel.set_status(
+                    "You are playing black. The engine will make the first move.",
+                    "info",
+                )
+                self.info_panel.set_turn(False)
+                self.status_bar.set_context("Robot's first move...")
+
+                def _robot_first_move():
+                    self._busy.set()
+                    try:
+                        self.game.playRobotMove(self.message_callback)
+                        if self._active:
+                            try:
+                                self.root.after(0, self._update_ui_after_move)
+                            except RuntimeError:
+                                pass
+                    except Exception as e:
+                        logger.error(f"Error during robot first move: {e}")
+                        if self._active:
+                            try:
+                                self.root.after(
+                                    0,
+                                    lambda: CTkMessagebox(
+                                        title="Error",
+                                        message=f"Engine move failed: {e}",
+                                        icon="cancel",
+                                    ),
+                                )
+                            except RuntimeError:
+                                pass
+                    finally:
+                        self._busy.clear()
+
+                threading.Thread(target=_robot_first_move, daemon=True).start()
+            else:
+                self.info_panel.set_status(
+                    "Please set the pieces in their starting positions.", "info"
+                )
+                self._after_ids.append(self.root.after(500, self.play_first_move))
+        else:
+            current_dgt_fen = self.game.dgtBoard.getCurentBoardFen()
+            if current_dgt_fen == correct_start_fen:
+                sim_hint = (
+                    " Click a piece to move." if SIMULATION_MODE else ""
+                )
+                self.info_panel.set_status(
+                    "You are playing white. Make your move!" + sim_hint,
+                    "info",
+                )
+                self.info_panel.set_turn(True)
+                self.status_bar.set_context("Your turn")
+            else:
+                self.info_panel.set_status(
+                    "Please set up the board correctly.", "info"
+                )
+                self._after_ids.append(self.root.after(500, self.play_first_move))
+
+    def on_human_move(self, uci: str):
+        """Called by the chessboard when the user clicks a move in sim mode."""
+        if self._busy.is_set():
+            return
+
+        legal_ucis = [m.uci() for m in self.game.board.board.legal_moves]
+        if uci not in legal_ucis:
+            if len(uci) == 4 and uci + "q" in legal_ucis:
+                uci = uci + "q"
+            else:
+                return
+
+        ok = self.dgt.sim_inject_human_move(uci)
+        if ok:
+            preview_fen = self.dgt.getCurentBoardFen()
+            self.board_canvas.update_board(preview_fen)
+            self.board_canvas.highlight_last_move(uci)
+            self.info_panel.set_status("Move ready. Press Confirm Move.", "info")
+            logger.info(f"Sim: human move {uci} injected, press Confirm Move")
 
 
 def show_game_screen(root, color, difficulty):
@@ -78,7 +341,6 @@ def show_game_screen(root, color, difficulty):
         Settings.SQUARE_SIZE,
     )
 
-    # Initialize Stockfish engine
     engine = None
     try:
         engine = chess.engine.SimpleEngine.popen_uci(Settings.STOCKFISH_PATH)
@@ -95,7 +357,6 @@ def show_game_screen(root, color, difficulty):
         navigation.navigate_to_home(root)
         return
 
-    # Set FEN on DGT board in simulation mode
     dgt.sim_set_fen(Settings.START_FEN)
 
     gameInfo = chess.pgn.Game()
@@ -116,309 +377,85 @@ def show_game_screen(root, color, difficulty):
     # ------------------------------------------------------------------
     # UI Layout
     # ------------------------------------------------------------------
-    ubuntu_font_large = ctk.CTkFont(size=48, weight="bold")
+    container = ctk.CTkFrame(root, fg_color=BG_PRIMARY, corner_radius=0)
+    container.pack(fill="both", expand=True)
 
-    BUTTON_HEIGHT = 150
-    BUTTON_CORNER_RADIUS = 40
-    BORDER_COLOR = "white"
-    BORDER_WIDTH = 10
+    # We create a placeholder for the controller's return_to_home
+    # since we need status_bar first
+    ctrl_ref = [None]
 
-    game_frame = ctk.CTkFrame(root)
-    game_frame.pack(fill="both", expand=True, padx=20, pady=20)
+    status_bar = StatusBar(
+        container,
+        back_command=lambda: ctrl_ref[0].return_to_home() if ctrl_ref[0] else None,
+        show_connections=True,
+    )
+    status_bar.pack(fill="x")
+    status_bar.set_connection("engine", "connected")
+
+    # Main content frame
+    game_frame = ctk.CTkFrame(container, fg_color="transparent")
+    game_frame.pack(fill="both", expand=True, padx=20, pady=10)
+    game_frame.grid_columnconfigure(1, weight=1)
+    game_frame.grid_rowconfigure(0, weight=1)
 
     flipped = color == "black"
 
-    # ------------------------------------------------------------------
-    # Click-to-move callback for simulation mode
-    # ------------------------------------------------------------------
-    def on_human_move(uci: str):
-        """Called by the chessboard when the user clicks a move in sim mode.
-
-        Injects the move into the DGT board's preview so that the next
-        ``confirmMove()`` call will detect it. Also updates the visual
-        board to show the pending move.
-        """
-        if _busy.is_set():
-            return
-
-        # Validate against the game's internal board
-        legal_ucis = [m.uci() for m in game.board.board.legal_moves]
-        if uci not in legal_ucis:
-            logger.debug(
-                f"Clicked move {uci} is not legal (legal: {legal_ucis[:5]}...)"
-            )
-            # Try without promotion suffix or with queen promotion
-            if len(uci) == 4 and uci + "q" in legal_ucis:
-                uci = uci + "q"
-            else:
-                return
-
-        ok = dgt.sim_inject_human_move(uci)
-        if ok:
-            # Show the pending move visually on the canvas
-            preview_fen = dgt.getCurentBoardFen()
-            board_canvas.update_board(preview_fen)
-            # Highlight from/to squares
-            from_file = ord(uci[0]) - ord("a")
-            from_rank = int(uci[1]) - 1
-            to_file = ord(uci[2]) - ord("a")
-            to_rank = int(uci[3]) - 1
-            board_canvas.highlight_square(from_file, from_rank, color="#aaf0aa")
-            board_canvas.highlight_square(to_file, to_rank, color="#aaf0aa")
-            logger.info(f"Sim: human move {uci} injected, press Confirm Move")
-
-    move_cb = on_human_move if SIMULATION_MODE else None
-
-    # Chessboard
-    board_frame = ctk.CTkFrame(game_frame)
-    board_frame.grid(row=0, column=0, padx=20, pady=20, sticky="n", rowspan=3)
+    # Chessboard (left)
+    board_frame = ctk.CTkFrame(game_frame, fg_color="transparent")
+    board_frame.grid(row=0, column=0, padx=(0, 16), pady=0, sticky="n")
 
     square_size = 100
     board_canvas = Chessboard(
-        board_frame, square_size=square_size, flipped=flipped, move_callback=move_cb
+        board_frame, square_size=square_size, flipped=flipped, move_callback=None
     )
     board_canvas.pack()
 
     starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     board_canvas.update_board(starting_fen)
 
+    # Right panel: info + history + buttons
+    right_panel = ctk.CTkFrame(game_frame, fg_color="transparent")
+    right_panel.grid(row=0, column=1, sticky="nsew", pady=0)
+    right_panel.grid_rowconfigure(1, weight=1)
+
+    # Game info panel
+    info_panel = GameInfoPanel(right_panel, width=320)
+    info_panel.grid(row=0, column=0, sticky="new", pady=(0, 10))
+
     # Move history
-    history_frame = ctk.CTkFrame(game_frame)
-    history_frame.grid(row=0, column=1, padx=20, pady=20, sticky="n")
-
-    # Action buttons
-    action_frame = ctk.CTkFrame(game_frame)
-    action_frame.grid(row=1, column=1, padx=20, pady=10, sticky="e")
-
-    # State tracking for busy operations
-    _busy = threading.Event()
-    _active = (
-        True  # Set to False when navigating away; prevents stale after() callbacks
-    )
-    _after_ids: list[str] = []  # Track after() IDs for cleanup
-
-    confirm_move_button = ctk.CTkButton(
-        action_frame,
-        text="CONFIRM MOVE",
-        font=ubuntu_font_large,
-        fg_color="#28a745",
-        hover=False,
-        text_color="white",
-        border_color=BORDER_COLOR,
-        border_width=BORDER_WIDTH,
-        height=BUTTON_HEIGHT,
-        corner_radius=BUTTON_CORNER_RADIUS,
-        command=lambda: confirm_move(),
-    )
-    confirm_move_button.pack(side="left", padx=10)
-
-    resign_button = ctk.CTkButton(
-        action_frame,
-        text="RESIGN",
-        font=ubuntu_font_large,
-        fg_color="#dc3545",
-        hover=False,
-        border_color=BORDER_COLOR,
-        border_width=BORDER_WIDTH,
-        height=BUTTON_HEIGHT,
-        corner_radius=BUTTON_CORNER_RADIUS,
-        text_color="white",
-        command=lambda: resign_game(),
-    )
-    resign_button.pack()
+    history_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
+    history_frame.grid(row=1, column=0, sticky="new", pady=(0, 10))
 
     move_history = MoveHistory(history_frame, board_canvas, game)
-    move_history.grid(row=0, column=0, padx=20, pady=20, sticky="n")
+    move_history.pack()
 
-    # ------------------------------------------------------------------
-    # Helper functions
-    # ------------------------------------------------------------------
+    # Create the controller
+    ctrl = _GameController(
+        root, game, dgt, robot, engine,
+        board_canvas, move_history, info_panel, status_bar, color,
+    )
+    ctrl_ref[0] = ctrl
 
-    def return_to_home():
-        nonlocal _active
-        _active = False
-        # Cancel pending after() callbacks
-        for aid in _after_ids:
-            try:
-                root.after_cancel(aid)
-            except Exception:
-                pass
-        _after_ids.clear()
-        if engine:
-            try:
-                engine.quit()
-            except Exception:
-                pass
-        robot.close()
-        dgt.close()
-        navigation.navigate_to_home(root)
+    # Set up click-to-move callback for simulation
+    if SIMULATION_MODE:
+        board_canvas.set_move_callback(ctrl.on_human_move)
 
-    def message_callback(header, text):
-        """Thread-safe message callback — schedules UI update on main thread."""
-        if not _active:
-            return
+    # Action buttons (stacked vertically)
+    action_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
+    action_frame.grid(row=2, column=0, sticky="sew", pady=(0, 0))
 
-        def _show():
-            if not _active:
-                return
-            logger.info(f"Message: {header} - {text}")
-            if header in ["You won", "You lost", "It's a draw"]:
-                msg = text + "\nDo you want to return to the home menu?"
-                msg_box = CTkMessagebox(
-                    title=header,
-                    message=msg,
-                    icon="question",
-                    option_1="Yes",
-                    option_2="No",
-                )
-                response = msg_box.get()
-                if response == "Yes":
-                    return_to_home()
-            else:
-                CTkMessagebox(title=header, message=text, icon="info", option_1="OK")
+    confirm_btn = primary_button(
+        action_frame, "Confirm Move", ctrl.confirm_move
+    )
+    confirm_btn.pack(fill="x", pady=(0, 8))
 
-        root.after(0, _show)
-
-    def _update_ui_after_move():
-        """Update UI elements after a move (called on main thread)."""
-        if not _active:
-            return
-        board_canvas.update_board(game.board.board.fen())
-        move_history.load_moves(game.board.board)
-
-    def confirm_move():
-        """
-        Handle the confirm move button press.
-        Runs the game logic in a background thread to avoid freezing the UI.
-
-        FIX: Removed infinite recursion from original.
-        """
-        if _busy.is_set():
-            logger.debug("Confirm move ignored: already processing")
-            return
-
-        # In simulation mode, check that the user has clicked a move first
-        if SIMULATION_MODE and dgt._sim_preview is None:
-            CTkMessagebox(
-                title="No Move",
-                message="Click on a piece and then a destination square to make your move.",
-                icon="info",
-                option_1="OK",
-            )
-            return
-
-        # Reset move history to show current position
-        move_history.reset_to_current()
-
-        def _worker():
-            _busy.set()
-            try:
-                game.confirmMove(message_callback)
-                # Update UI on main thread
-                root.after(0, _update_ui_after_move)
-            except Exception as e:
-                logger.error(f"Error during confirmMove: {e}")
-                root.after(
-                    0,
-                    lambda: CTkMessagebox(
-                        title="Error",
-                        message=f"An error occurred: {e}",
-                        icon="cancel",
-                    ),
-                )
-            finally:
-                _busy.clear()
-
-        threading.Thread(target=_worker, daemon=True).start()
-
-    def resign_game():
-        msg_box = CTkMessagebox(
-            title="Resign",
-            message="Are you sure you want to resign the game?",
-            icon="question",
-            option_1="Yes",
-            option_2="No",
-        )
-        if msg_box.get() == "Yes":
-            return_to_home()
-
-    def play_first_move():
-        """
-        Handle the first move of the game.
-        If human plays black, the robot moves first.
-
-        FIX: Corrected tautological comparison (was correct_start_fen == correct_start_fen).
-        """
-        if not _active:
-            return
-        correct_start_fen = game.board.board.fen().split(" ")[0]
-
-        sim_hint = (
-            "\n\nClick on a piece, then click a destination square to move."
-            if SIMULATION_MODE
-            else ""
-        )
-
-        if color == "black":
-            current_dgt_fen = game.dgtBoard.getCurentBoardFen()
-            if current_dgt_fen == correct_start_fen:
-                msg = "You are playing black. The engine will make the first move. Press OK when ready."
-                CTkMessagebox(
-                    title="Get Ready",
-                    message=msg,
-                    icon="info",
-                    option_1="OK",
-                )
-
-                def _robot_first_move():
-                    _busy.set()
-                    try:
-                        game.playRobotMove(message_callback)
-                        root.after(0, _update_ui_after_move)
-                    except Exception as e:
-                        logger.error(f"Error during robot first move: {e}")
-                        root.after(
-                            0,
-                            lambda: CTkMessagebox(
-                                title="Error",
-                                message=f"Engine move failed: {e}",
-                                icon="cancel",
-                            ),
-                        )
-                    finally:
-                        _busy.clear()
-
-                threading.Thread(target=_robot_first_move, daemon=True).start()
-            else:
-                CTkMessagebox(
-                    title="Board Setup",
-                    message="Please set the pieces in their starting positions and press OK.",
-                    icon="info",
-                    option_1="OK",
-                )
-                _after_ids.append(root.after(500, play_first_move))
-        else:
-            # FIX: actually compare DGT board FEN against expected start FEN
-            current_dgt_fen = game.dgtBoard.getCurentBoardFen()
-            if current_dgt_fen == correct_start_fen:
-                msg = "You are playing white. Make your move!" + sim_hint
-                CTkMessagebox(
-                    title="Get Ready",
-                    message=msg,
-                    icon="info",
-                    option_1="OK",
-                )
-            else:
-                CTkMessagebox(
-                    title="Board Setup",
-                    message="Please set up the board correctly and press OK.",
-                    icon="info",
-                    option_1="OK",
-                )
-                _after_ids.append(root.after(500, play_first_move))
+    resign_btn = danger_button(
+        action_frame, "Resign", ctrl.resign_game
+    )
+    resign_btn.pack(fill="x")
 
     # Start the game
-    _after_ids.append(root.after(100, play_first_move))
+    ctrl._after_ids.append(root.after(100, ctrl.play_first_move))
 
 
 if __name__ == "__main__":

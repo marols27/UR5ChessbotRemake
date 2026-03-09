@@ -4,15 +4,25 @@ Chessboard canvas component: Renders a chess position from FEN.
 Fixes over original:
 - highlight_square correctly handles both flipped and non-flipped boards
 - Uses os.path.dirname(__file__) for reliable image path resolution
+- Board colors and highlight colors imported from theme
+- Wrapped in styled CTkFrame for modern border treatment
+- Coordinate label font reduced to 14
+- Added highlight_last_move() method
 """
 
 import os
 import tkinter as tk
+import customtkinter as ctk
 from PIL import Image, ImageTk
+from theme import (
+    BOARD_LIGHT, BOARD_DARK, BOARD_HIGHLIGHT, BOARD_SELECT,
+    BOARD_NAV_HIGHLIGHT, BG_SECONDARY, BORDER_SUBTLE, BORDER_WIDTH,
+    CORNER_RADIUS,
+)
 
 
-class Chessboard(tk.Canvas):
-    """Chess board canvas that renders a position from FEN.
+class Chessboard(ctk.CTkFrame):
+    """Chess board wrapped in a styled frame.
 
     In simulation mode, supports click-to-move: the user clicks a piece
     to select it (highlighted), then clicks a destination square. If a
@@ -24,25 +34,34 @@ class Chessboard(tk.Canvas):
     def __init__(
         self, parent, square_size=80, flipped=False, move_callback=None, *args, **kwargs
     ):
+        super().__init__(
+            parent,
+            fg_color=BG_SECONDARY,
+            corner_radius=CORNER_RADIUS,
+            border_color=BORDER_SUBTLE,
+            border_width=BORDER_WIDTH,
+            *args, **kwargs,
+        )
         self.square_size = square_size
         width = square_size * 8
         height = square_size * 8
-        super().__init__(parent, width=width, height=height, *args, **kwargs)
+        self.canvas = tk.Canvas(self, width=width, height=height, highlightthickness=0)
+        self.canvas.pack(padx=6, pady=6)
         self.flipped = flipped
-        self.pieces = self.load_images()
+        self.pieces = self._load_images()
         self.board = [[""] * 8 for _ in range(8)]
         self.current_fen = ""
         self.square_ids = [[None for _ in range(8)] for _ in range(8)]
 
         # Click-to-move state
         self._move_callback = move_callback
-        self._selected_square: tuple[int, int] | None = None  # (file, rank) 0-indexed
-        self._legal_targets: list[str] = []  # UCI target squares for selected piece
+        self._selected_square: tuple[int, int] | None = None
+        self._legal_targets: list[str] = []
 
         if move_callback is not None:
-            self.bind("<Button-1>", self._on_click)
+            self.canvas.bind("<Button-1>", self._on_click)
 
-    def load_images(self):
+    def _load_images(self):
         pieces = {}
         piece_map = {
             "wp": "Chess_plt60.png",
@@ -67,18 +86,15 @@ class Chessboard(tk.Canvas):
                     (self.square_size, self.square_size), Image.Resampling.LANCZOS
                 )
                 pieces[key] = ImageTk.PhotoImage(image)
-            else:
-                # Don't crash if image is missing
-                pass
         return pieces
 
     def update_board(self, fen):
         self.current_fen = fen
-        board = self.parse_fen(fen)
-        self.render_board(board)
+        board = self._parse_fen(fen)
+        self._render_board(board)
 
-    def render_board(self, board):
-        self.delete("all")
+    def _render_board(self, board):
+        self.canvas.delete("all")
         file_labels = ["a", "b", "c", "d", "e", "f", "g", "h"]
         rank_labels = ["1", "2", "3", "4", "5", "6", "7", "8"]
         if self.flipped:
@@ -89,90 +105,92 @@ class Chessboard(tk.Canvas):
             for j in range(8):
                 x1, y1 = j * self.square_size, i * self.square_size
                 x2, y2 = x1 + self.square_size, y1 + self.square_size
-                color = "#f0d9b5" if (i + j) % 2 == 0 else "#b58863"
-                square_id = self.create_rectangle(
+                color = BOARD_LIGHT if (i + j) % 2 == 0 else BOARD_DARK
+                square_id = self.canvas.create_rectangle(
                     x1, y1, x2, y2, fill=color, outline=color
                 )
                 self.square_ids[i][j] = square_id
 
-                # Map display position to board position
                 if self.flipped:
                     i_render, j_render = 7 - i, 7 - j
                 else:
                     i_render, j_render = i, j
 
-                piece = self.fen_to_piece(board[i_render][j_render])
+                piece = self._fen_to_piece(board[i_render][j_render])
 
                 if piece:
                     piece_image = self.pieces.get(piece)
                     if piece_image:
-                        piece_id = self.create_image(
+                        piece_id = self.canvas.create_image(
                             x1, y1, anchor="nw", image=piece_image
                         )
-                        self.addtag_withtag(f"piece-{i_render}-{j_render}", piece_id)
+                        self.canvas.addtag_withtag(
+                            f"piece-{i_render}-{j_render}", piece_id
+                        )
 
                 # File and rank labels
                 if j == 0:
-                    self.create_text(
+                    self.canvas.create_text(
                         x1 + 5,
                         y2 - 5,
                         text=rank_labels[7 - i],
                         anchor="sw",
-                        font=("Helvetica", 18, "bold"),
-                        fill="black" if color == "#f0d9b5" else "white",
+                        font=("Helvetica", 14, "bold"),
+                        fill="black" if color == BOARD_LIGHT else "white",
                     )
                 if i == 7:
-                    self.create_text(
+                    self.canvas.create_text(
                         x2 - 5,
                         y2 - 5,
                         text=file_labels[j],
                         anchor="se",
-                        font=("Helvetica", 18, "bold"),
-                        fill="black" if color == "#f0d9b5" else "white",
+                        font=("Helvetica", 14, "bold"),
+                        fill="black" if color == BOARD_LIGHT else "white",
                     )
 
-    def highlight_square(self, file: int, rank: int, color="#ffff00"):
-        """
-        Highlight a square on the board.
+    def highlight_square(self, file: int, rank: int, color=None):
+        """Highlight a square on the board.
 
         Args:
             file: 0-7 (a-h)
             rank: 0-7 (1-8)
-            color: highlight color
-
-        FIX: Correctly compute display row/col for both flipped and non-flipped.
+            color: highlight color (defaults to BOARD_HIGHLIGHT)
         """
-        # Convert chess coordinates (file, rank) to display grid (row, col)
+        if color is None:
+            color = BOARD_HIGHLIGHT
+
         if self.flipped:
             display_col = 7 - file
-            display_row = (
-                rank  # rank 0 (rank 1) at bottom when flipped = row 0 at top visually
-            )
+            display_row = rank
         else:
             display_col = file
-            display_row = 7 - rank  # rank 0 (rank 1) at bottom = row 7
+            display_row = 7 - rank
 
         if not (0 <= display_row <= 7 and 0 <= display_col <= 7):
             return
 
         square_id = self.square_ids[display_row][display_col]
         if square_id:
-            self.itemconfig(square_id, fill=color, outline=color)
+            self.canvas.itemconfig(square_id, fill=color, outline=color)
 
-        # Raise pieces above highlight
-        piece_tag = (
-            f"piece-{7 - rank}-{file}"
-            if not self.flipped
-            else f"piece-{7 - rank}-{file}"
-        )
-        # The piece tag uses board coordinates (i_render, j_render) which are the actual board row/col
-        actual_row = 7 - rank  # board row (0 = rank 8)
+        actual_row = 7 - rank
         actual_col = file
-        piece_id = self.find_withtag(f"piece-{actual_row}-{actual_col}")
+        piece_id = self.canvas.find_withtag(f"piece-{actual_row}-{actual_col}")
         if piece_id:
-            self.tag_raise(piece_id)
+            self.canvas.tag_raise(piece_id)
 
-    def parse_fen(self, fen):
+    def highlight_last_move(self, uci: str):
+        """Highlight the from/to squares of a move given as UCI string (e.g. 'e2e4')."""
+        if len(uci) < 4:
+            return
+        from_file = ord(uci[0]) - ord("a")
+        from_rank = int(uci[1]) - 1
+        to_file = ord(uci[2]) - ord("a")
+        to_rank = int(uci[3]) - 1
+        self.highlight_square(from_file, from_rank, color=BOARD_HIGHLIGHT)
+        self.highlight_square(to_file, to_rank, color=BOARD_HIGHLIGHT)
+
+    def _parse_fen(self, fen):
         rows = fen.split(" ")[0].split("/")
         board = []
         for row in rows:
@@ -185,20 +203,10 @@ class Chessboard(tk.Canvas):
             board.append(board_row)
         return board
 
-    def fen_to_piece(self, char):
+    def _fen_to_piece(self, char):
         piece_map = {
-            "p": "bp",
-            "r": "br",
-            "n": "bn",
-            "b": "bb",
-            "q": "bq",
-            "k": "bk",
-            "P": "wp",
-            "R": "wr",
-            "N": "wn",
-            "B": "wb",
-            "Q": "wq",
-            "K": "wk",
+            "p": "bp", "r": "br", "n": "bn", "b": "bb", "q": "bq", "k": "bk",
+            "P": "wp", "R": "wr", "N": "wn", "B": "wb", "Q": "wq", "K": "wk",
         }
         return piece_map.get(char, "")
 
@@ -207,10 +215,6 @@ class Chessboard(tk.Canvas):
     # ------------------------------------------------------------------
 
     def _pixel_to_square(self, x: int, y: int) -> tuple[int, int]:
-        """Convert pixel coordinates to (file, rank) each 0-indexed.
-
-        file 0 = a, rank 0 = rank 1.
-        """
         col = x // self.square_size
         row = y // self.square_size
         col = max(0, min(7, col))
@@ -218,43 +222,36 @@ class Chessboard(tk.Canvas):
 
         if self.flipped:
             file = 7 - col
-            rank = row  # row 0 = rank 1 when flipped
+            rank = row
         else:
             file = col
-            rank = 7 - row  # row 0 = rank 8, so rank = 7-row
+            rank = 7 - row
 
         return file, rank
 
     @staticmethod
     def _square_name(file: int, rank: int) -> str:
-        """Return algebraic name like 'e4' for file=4, rank=3."""
         return chr(ord("a") + file) + str(rank + 1)
 
     def _on_click(self, event):
-        """Handle a click on the board canvas."""
         file, rank = self._pixel_to_square(event.x, event.y)
 
         if self._selected_square is None:
-            # First click — select a piece
             self._try_select(file, rank)
         else:
             sel_file, sel_rank = self._selected_square
             if (file, rank) == (sel_file, sel_rank):
-                # Clicked the same square — deselect
                 self._deselect()
             else:
-                # Second click — attempt move
                 from_name = self._square_name(sel_file, sel_rank)
                 to_name = self._square_name(file, rank)
                 uci = from_name + to_name
 
-                # Check for pawn promotion (pawn reaching last rank)
-                board_row = 7 - (sel_rank)  # display row in parse_fen order
-                parsed = self.parse_fen(self.current_fen)
+                board_row = 7 - sel_rank
+                parsed = self._parse_fen(self.current_fen)
                 if 0 <= board_row < 8 and 0 <= sel_file < 8:
                     piece_char = parsed[board_row][sel_file]
                     if piece_char.lower() == "p" and (rank == 7 or rank == 0):
-                        # Auto-promote to queen (most common)
                         uci += "q"
 
                 self._deselect()
@@ -262,31 +259,25 @@ class Chessboard(tk.Canvas):
                     self._move_callback(uci)
 
     def _try_select(self, file: int, rank: int):
-        """Try to select a piece at the given square."""
-        # Check there's actually a piece here
         board_row = 7 - rank
-        parsed = self.parse_fen(self.current_fen)
+        parsed = self._parse_fen(self.current_fen)
         if board_row < 0 or board_row >= 8 or file < 0 or file >= 8:
             return
         piece_char = parsed[board_row][file]
         if piece_char == "" or piece_char == ".":
-            return  # empty square
+            return
 
         self._selected_square = (file, rank)
-
-        # Highlight the selected square
-        self.highlight_square(file, rank, color="#7fc97f")
+        self.highlight_square(file, rank, color=BOARD_SELECT)
 
     def _deselect(self):
-        """Deselect the current piece and redraw the board."""
         self._selected_square = None
         if self.current_fen:
             self.update_board(self.current_fen)
 
     def set_move_callback(self, callback):
-        """Set or update the move callback after construction."""
         self._move_callback = callback
         if callback is not None:
-            self.bind("<Button-1>", self._on_click)
+            self.canvas.bind("<Button-1>", self._on_click)
         else:
-            self.unbind("<Button-1>")
+            self.canvas.unbind("<Button-1>")
