@@ -10,8 +10,8 @@ Fixes:
 
 import logging
 import customtkinter as ctk
-from navigation import navigate_to_home
-from theme import BG_PRIMARY
+from gui.navigation import navigate_to_home
+from gui.theme import BG_PRIMARY
 
 # Configure logging
 logging.basicConfig(

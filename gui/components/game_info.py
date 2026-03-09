@@ -5,7 +5,7 @@ Replaces most CTkMessagebox popups on the game screen with inline feedback.
 """
 
 import customtkinter as ctk
-from theme import (
+from ..theme import (
     BG_SECONDARY, BG_TERTIARY, BORDER_SUBTLE, BORDER_WIDTH,
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT,
     STATUS_GREEN, STATUS_RED, STATUS_AMBER,

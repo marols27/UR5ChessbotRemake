@@ -10,7 +10,7 @@ Fixes over original:
 
 import chess
 import customtkinter as ctk
-from theme import (
+from ..theme import (
     BG_SECONDARY, BG_INPUT, BORDER_SUBTLE, BORDER_WIDTH, CORNER_RADIUS,
     TEXT_PRIMARY, TEXT_SECONDARY, BOARD_NAV_HIGHLIGHT,
     font_h3, font_body, font_mono, TOUCH_MIN,

@@ -19,10 +19,10 @@ import chess
 import chess.engine
 import chess.pgn
 
-from Board import Board
-from DGTBoard import DGTBoard
-from ToolCenterPoint import ToolCenterPoint as TCP
-from UR5Robot import UR5Robot
+from .Board import Board
+from .DGTBoard import DGTBoard
+from .ToolCenterPoint import ToolCenterPoint as TCP
+from .UR5Robot import UR5Robot
 
 logger = logging.getLogger(__name__)
 

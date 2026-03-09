@@ -16,9 +16,9 @@ import shutil
 
 import chess
 import chess.engine
-from ToolCenterPoint import ToolCenterPoint as TCP
-from UR5Feature import UR5Feature
-from PoseConfigure import PoseConfigure
+from .ToolCenterPoint import ToolCenterPoint as TCP
+from .UR5Feature import UR5Feature
+from .PoseConfigure import PoseConfigure
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ PORT: str = "/dev/ttyACM0"
 # ------------------------------------------------------------------
 # Config file
 # ------------------------------------------------------------------
-_PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILE_NAME: str = os.path.join(_PROJECT_DIR, "config.json")
 
 # ------------------------------------------------------------------

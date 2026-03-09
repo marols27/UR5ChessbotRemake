@@ -1,4 +1,4 @@
-from ToolCenterPoint import ToolCenterPoint as TCP
+from .ToolCenterPoint import ToolCenterPoint as TCP
 import numpy as NP
 import copy
 

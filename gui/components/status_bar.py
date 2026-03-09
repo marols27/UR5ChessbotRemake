@@ -10,8 +10,8 @@ Displays:
 """
 
 import customtkinter as ctk
-from simulation import SIMULATION_MODE
-from theme import (
+from robot.simulation import SIMULATION_MODE
+from ..theme import (
     BG_SECONDARY, BG_TERTIARY, BORDER_SUBTLE, BORDER_WIDTH,
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT,
     STATUS_GREEN, STATUS_RED, STATUS_AMBER,

@@ -8,9 +8,9 @@ import os
 import customtkinter as ctk
 from PIL import Image
 
-import navigation
-from components.status_bar import StatusBar
-from theme import (
+from . import navigation
+from .components.status_bar import StatusBar
+from .theme import (
     BG_PRIMARY, BG_SECONDARY, BG_TERTIARY, BORDER_SUBTLE,
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT,
     DIFF_EASY, DIFF_MEDIUM, DIFF_HARD,
@@ -120,7 +120,7 @@ def show_selection_screen(root):
 
     color_cards = {}
     # Piece images for color cards
-    base_path = os.path.join(os.path.dirname(__file__), "assets", "images")
+    base_path = os.path.join(os.path.dirname(__file__), "..", "assets", "images")
     king_images = {
         "white": os.path.join(base_path, "Chess_klt60.png"),
         "black": os.path.join(base_path, "Chess_kdt60.png"),

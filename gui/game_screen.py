@@ -17,25 +17,25 @@ import threading
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 
-from components.chessboard import Chessboard
-from components.move_history import MoveHistory
-from components.status_bar import StatusBar
-from components.game_info import GameInfoPanel
-from DGTBoard import DGTBoard
-from UR5Robot import UR5Robot
-from Board import Board
-from Game import Game
-from simulation import SIMULATION_MODE
-from theme import (
+from .components.chessboard import Chessboard
+from .components.move_history import MoveHistory
+from .components.status_bar import StatusBar
+from .components.game_info import GameInfoPanel
+from robot.DGTBoard import DGTBoard
+from robot.UR5Robot import UR5Robot
+from robot.Board import Board
+from robot.Game import Game
+from robot.simulation import SIMULATION_MODE
+from .theme import (
     BG_PRIMARY, BG_SECONDARY, BORDER_SUBTLE,
     primary_button, danger_button, card_frame,
     BOARD_HIGHLIGHT,
 )
-import Settings
+import robot.Settings as Settings
 import chess
 import chess.engine
 import chess.pgn
-import navigation
+from . import navigation
 
 logger = logging.getLogger(__name__)
 

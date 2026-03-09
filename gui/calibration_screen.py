@@ -13,11 +13,11 @@ import logging
 
 import customtkinter as ctk
 
-from PoseConfigure import PoseConfigure
-from navigation import navigate_to_home
-from simulation import SIMULATION_MODE
-from components.status_bar import StatusBar
-from theme import (
+from robot.PoseConfigure import PoseConfigure
+from .navigation import navigate_to_home
+from robot.simulation import SIMULATION_MODE
+from .components.status_bar import StatusBar
+from .theme import (
     BG_PRIMARY, BG_SECONDARY, BG_TERTIARY, BORDER_SUBTLE,
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT,
     STATUS_GREEN, STATUS_AMBER,
@@ -48,7 +48,7 @@ def show_calibration_screen(root):
     for widget in root.winfo_children():
         widget.destroy()
 
-    import Settings
+    import robot.Settings as Settings
 
     # Main container
     container = ctk.CTkFrame(root, fg_color=BG_PRIMARY, corner_radius=0)

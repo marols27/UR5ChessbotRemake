@@ -14,7 +14,7 @@ import os
 import tkinter as tk
 import customtkinter as ctk
 from PIL import Image, ImageTk
-from theme import (
+from ..theme import (
     BOARD_LIGHT, BOARD_DARK, BOARD_HIGHLIGHT, BOARD_SELECT,
     BOARD_NAV_HIGHLIGHT, BG_SECONDARY, BORDER_SUBTLE, BORDER_WIDTH,
     CORNER_RADIUS,
@@ -77,7 +77,7 @@ class Chessboard(ctk.CTkFrame):
             "bq": "Chess_qdt60.png",
             "bk": "Chess_kdt60.png",
         }
-        base_path = os.path.join(os.path.dirname(__file__), "..", "assets", "images")
+        base_path = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "images")
         for key, filename in piece_map.items():
             image_path = os.path.join(base_path, filename)
             if os.path.exists(image_path):

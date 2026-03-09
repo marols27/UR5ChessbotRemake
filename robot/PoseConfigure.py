@@ -14,7 +14,7 @@ import json
 import logging
 from enum import Enum
 
-from simulation import SIMULATION_MODE
+from .simulation import SIMULATION_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class PoseConfigure:
 
         import rtde_control
         import rtde_receive
-        from robotiq_gripper_control import RobotiqGripper
+        from .robotiq_gripper_control import RobotiqGripper
 
         control = rtde_control.RTDEControlInterface(self.connectionIP)
         info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
@@ -104,7 +104,7 @@ class PoseConfigure:
 
         import rtde_control
         import rtde_receive
-        from robotiq_gripper_control import RobotiqGripper
+        from .robotiq_gripper_control import RobotiqGripper
 
         control = rtde_control.RTDEControlInterface(self.connectionIP)
         info = rtde_receive.RTDEReceiveInterface(self.connectionIP)
@@ -140,7 +140,7 @@ class PoseConfigure:
 
         import rtde_control
         import rtde_receive
-        from robotiq_gripper_control import RobotiqGripper
+        from .robotiq_gripper_control import RobotiqGripper
 
         self._control = rtde_control.RTDEControlInterface(self.connectionIP)
         self._info = rtde_receive.RTDEReceiveInterface(self.connectionIP)

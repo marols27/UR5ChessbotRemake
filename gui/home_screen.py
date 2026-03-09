@@ -8,9 +8,9 @@ import os
 import customtkinter as ctk
 from PIL import Image
 
-from navigation import navigate_to_selection, navigate_to_calibration
-from components.status_bar import StatusBar
-from theme import (
+from .navigation import navigate_to_selection, navigate_to_calibration
+from .components.status_bar import StatusBar
+from .theme import (
     BG_PRIMARY, BG_SECONDARY, BORDER_SUBTLE, TEXT_PRIMARY, TEXT_SECONDARY,
     font_h1, font_body, primary_button, secondary_button, danger_button,
     card_frame, heading, CORNER_RADIUS,
@@ -42,7 +42,7 @@ def show_home_screen(root):
 
     # Logo
     image_path = os.path.join(
-        os.path.dirname(__file__), "assets", "images", "robotics_logo.jpg"
+        os.path.dirname(__file__), "..", "assets", "images", "robotics_logo.jpg"
     )
     if os.path.exists(image_path):
         logo_img = ctk.CTkImage(Image.open(image_path), size=(180, 180))

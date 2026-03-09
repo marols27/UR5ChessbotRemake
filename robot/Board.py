@@ -6,8 +6,8 @@ coordinate mapping between board squares and robot TCP positions.
 import logging
 import chess
 import chess.pgn
-from UR5Feature import UR5Feature
-from ToolCenterPoint import ToolCenterPoint as TCP
+from .UR5Feature import UR5Feature
+from .ToolCenterPoint import ToolCenterPoint as TCP
 
 logger = logging.getLogger(__name__)
 

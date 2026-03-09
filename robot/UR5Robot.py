@@ -16,8 +16,8 @@ Fixes over original:
 import copy
 import logging
 
-from ToolCenterPoint import ToolCenterPoint as TCP
-from simulation import SIMULATION_MODE
+from .ToolCenterPoint import ToolCenterPoint as TCP
+from .simulation import SIMULATION_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class UR5Robot:
         """Establish connections to the robot hardware."""
         import rtde_control
         import rtde_receive
-        from robotiq_gripper_control import RobotiqGripper
+        from .robotiq_gripper_control import RobotiqGripper
 
         self.control = rtde_control.RTDEControlInterface(self.connectionIP)
         self.info = rtde_receive.RTDEReceiveInterface(self.connectionIP)

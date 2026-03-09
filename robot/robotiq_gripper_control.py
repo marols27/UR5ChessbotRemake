@@ -7,7 +7,7 @@ In simulation mode, all methods are no-ops that log their actions.
 import logging
 import time
 
-from simulation import SIMULATION_MODE
+from .simulation import SIMULATION_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class RobotiqGripper:
         self.rtde_c = rtde_c
 
         if not self.simulation:
-            from robotiq_preamble import ROBOTIQ_PREAMBLE
+            from .robotiq_preamble import ROBOTIQ_PREAMBLE
 
             self._preamble = ROBOTIQ_PREAMBLE
             if rtde_c is None:
