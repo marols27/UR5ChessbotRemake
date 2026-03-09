@@ -64,19 +64,19 @@ class MoveHistory(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            self, text="\u00ab", command=self.first_move, **nav_style
+            self, text="<<", command=self.first_move, **nav_style
         ).grid(row=2, column=0, pady=4, padx=3)
 
         ctk.CTkButton(
-            self, text="\u2039", command=self.prev_move, **nav_style
+            self, text="<", command=self.prev_move, **nav_style
         ).grid(row=2, column=1, pady=4, padx=3)
 
         ctk.CTkButton(
-            self, text="\u203a", command=self.next_move, **nav_style
+            self, text=">", command=self.next_move, **nav_style
         ).grid(row=2, column=2, pady=4, padx=3)
 
         ctk.CTkButton(
-            self, text="\u00bb", command=self.last_move, **nav_style
+            self, text=">>", command=self.last_move, **nav_style
         ).grid(row=2, column=3, pady=4, padx=3)
 
     def load_moves(self, board: chess.Board):

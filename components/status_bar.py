@@ -41,7 +41,7 @@ class StatusBar(ctk.CTkFrame):
         if back_command:
             back_btn = ctk.CTkButton(
                 left,
-                text="\u2190",
+                text="<",
                 width=40,
                 height=36,
                 fg_color="transparent",
@@ -134,7 +134,7 @@ class _ConnectionDot(ctk.CTkFrame):
 
         self._dot = ctk.CTkLabel(
             self,
-            text="\u25cf",
+            text="*",
             font=ctk.CTkFont(size=14),
             text_color=STATUS_RED,
             width=16,

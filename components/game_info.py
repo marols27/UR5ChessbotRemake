@@ -71,7 +71,7 @@ class GameInfoPanel(ctk.CTkFrame):
 
         self._move_label = ctk.CTkLabel(
             move_card,
-            text="\u2014",
+            text="--",
             font=font_h2(),
             text_color=ACCENT,
         )

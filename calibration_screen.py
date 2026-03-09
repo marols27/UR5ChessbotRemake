@@ -93,7 +93,7 @@ def show_calibration_screen(root):
         # Dot
         dot = ctk.CTkLabel(
             step_frame,
-            text="\u25cf",
+            text="*",
             font=ctk.CTkFont(size=28),
             text_color=TEXT_SECONDARY,
             width=36,
